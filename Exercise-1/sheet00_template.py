@@ -39,7 +39,7 @@ if __name__ == '__main__':
     """
     # Shallow copy of the image
     # as well as store image shape
-    img_cpy = img
+    img_cpy = img.copy()
     img_rows = img_cpy.shape[0]
     img_cols = img_cpy.shape[1]
 

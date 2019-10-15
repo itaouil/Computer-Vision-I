@@ -1,0 +1,244 @@
+import sys
+import time
+import random
+import cv2 as cv
+import numpy as np
+from matplotlib import pyplot as plt
+
+def display_image(window_name, img):
+    """
+        Displays image with given window name.
+        :param window_name: name of the window
+        :param img: image object to display
+    """
+    cv.imshow(window_name, img)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+
+def read_image(img_path):
+    """
+        Reads an image as
+        a grayscale image
+        and returns it.
+    """
+    # Read image using
+    # opencv imread function
+    gray_img = cv.imread(img_path, cv.IMREAD_GRAYSCALE)
+
+    return gray_img
+
+def integral_image(gray_img):
+    """
+        A recursive implementation
+        to compute the integral image
+        of a grayscale image.
+    """
+    # Get gray image shape
+    height, width = gray_img.shape[:2]
+
+    # Define integral image
+    integral = np.full((height, width), None)
+
+    # Define index i, j
+    # for the recursive
+    # computation
+    i, j = height, width
+
+    # Define helper function
+    # for recursive computation
+    def helper(i, j):
+        # Base case 1:
+        # Negative values are
+        # not considered and should
+        # just return a 0
+        if i < 0 or j < 0:
+            return 0
+        # Base case 2:
+        # Cumulative sum for that
+        # index is already computed
+        # and so we just return it
+        elif integral[i][j] != None:
+            return integral[i][j]
+        # Recursive case 3:
+        # Cumulative sum not already
+        # computed and so we perform
+        # recursive computation
+        else:
+            sum = helper(i-1, j) + helper(i, j-1) - helper(i-1, j-1) + gray_img[i][j]
+            integral[i][j] = sum
+            return sum
+
+    # Compute integral
+    # through the recursive
+    # helper function
+    helper(i-1, j-1)
+
+    # Return the converted
+    # integral image in order
+    # to be displayed
+    return integral
+
+def mean_gray_for_loop(gray_img, x0, y0, x1, y1):
+    """
+        Compute mean gray of
+        a grayscale image by
+        computing the cumulative
+        sum using a for loop and
+        then dividing by the total
+        number of pixels
+    """
+    # Total sum
+    cumulative_sum = 0
+
+    # Height and width
+    # of the patch
+    height = x1 - x0 + 1
+    width = y1 - y0 + 1
+
+    # Compute cumulative sum
+    for i in range(x0, x1+1):
+        for j in range(y0, y1+1):
+            cumulative_sum += gray_img[i][j]
+
+    # Return mean gray
+    return cumulative_sum / (height * width)
+
+def mean_gray_integral(integral, x0, y0, x1, y1):
+    """
+        Compute mean gray of
+        a grayscale image by
+        computing the cumulative
+        sum using the opencv integral
+        function and then dividing by
+        the number of pixels
+    """
+    # Height and width
+    # of the patch
+    height = x1 - x0 + 1
+    width = y1 - y0 + 1
+
+    # Retrieve four integral
+    # point for cumulative sum
+    # computation
+    top_left = integral[x0, y0]
+    top_right = integral[x0, y1]
+    bottom_left = integral[x1, y0]
+    bottom_right = integral[x1, y1]
+
+    # Compute cumulative sum
+    cumulative_sum = bottom_right + top_left - bottom_left - top_right
+
+    # Return mean gray
+    return cumulative_sum / (height * width)
+
+if __name__ == '__main__':
+    img_path = sys.argv[1]
+
+#    =========================================================================
+#    ==================== Task 1 =================================
+#    =========================================================================
+    print('Task 1a:')
+
+    # Read the image
+    # into grayscale
+    gray_img = read_image(img_path)
+
+    # Width and height
+    # of the gray_img
+    height, width = gray_img.shape[:2]
+
+    # Compute the grayscale's
+    # image integral with the
+    # custom function
+    custom_integral = integral_image(gray_img).astype(np.uint8)
+    display_image('1 - a - Integral image using custom function', custom_integral)
+
+    # Compute the grayscale's
+    # image integral with opencv
+    # integral function
+    opencv_integral = cv.integral(gray_img).astype(np.uint8)[1:, 1:]
+    display_image('1 - a - Integral image using cv.integral', opencv_integral)
+
+    print('Task 1c:')
+
+    # Select 10 random
+    # rectangles within
+    # the image
+    for x in range(2):
+        # Randomly select
+        # a top left coordinate
+        # and a bottom right one
+        # in order to retrieve a
+        # rectangle within the original
+        # grayscale image
+        x_center = random.randint(49, height-51)
+        y_center = random.randint(49, width-51)
+
+        # Define top left and
+        # bottom right points
+        # of the rectangle
+        x0 = x_center - 49
+        y0 = y_center - 49
+        x1 = x_center + 50
+        y1 = y_center + 50
+
+        # Compute mean method 1 (loop)
+        t0 = time.time()
+        mean_grays_for_loop = mean_gray_for_loop(gray_img, x0, y0, x1, y1)
+        t1 = time.time()
+        print("Mean method1 running time: ", t1 - t0, "\n")
+
+        # Compute mean method 2 (custom integral)
+        t0 = time.time()
+        custom_integral = integral_image(gray_img)
+        mean_gray_custom_integral = mean_gray_integral(custom_integral, x0, y0, x1, y1)
+        t1 = time.time()
+        print("Mean method2 running time: ", t1 - t0, "\n")
+
+        # Compute mean method 3 (opencv integral image)
+        t0 = time.time()
+        opencv_integral = cv.integral(gray_img)[1:, 1:]
+        mean_gray_opencv_integral = mean_gray_integral(opencv_integral, x0, y0, x1, y1)
+        t1 = time.time()
+        print("Mean method3 running time: ", t1 - t0, "\n")
+
+#    =========================================================================
+#    ==================== Task 2 =================================
+#    =========================================================================
+    print('Task 2:');
+
+
+
+
+
+#    =========================================================================
+#    ==================== Task 4 =================================
+#    =========================================================================
+    print('Task 4:');
+
+
+
+
+
+#    =========================================================================
+#    ==================== Task 6 =================================
+#    =========================================================================
+    print('Task 6:');
+
+
+
+
+
+#    =========================================================================
+#    ==================== Task 7 =================================
+#    =========================================================================
+    print('Task 7:');
+
+
+
+
+
+#    =========================================================================
+#    ==================== Task 8 =================================
+#    =========================================================================
+    print('Task 8:');
