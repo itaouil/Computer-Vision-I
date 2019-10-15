@@ -131,6 +131,55 @@ def mean_gray_integral(integral, x0, y0, x1, y1):
     # Return mean gray
     return cumulative_sum / (height * width)
 
+def equalizeHistogram(gray_img):
+    """
+        Equalizes grayscale
+        image histogram in order
+        to linearize the CDF.
+    """
+    # Define histogram for
+    # the image as a binned
+    # container of 256 slots
+    # (i.e. from 0 to 255).
+    # Initially containing all
+    # zeroes.
+    histogram = np.zeros(256)
+
+    # Flatten gray image to be 1D
+    # numpy array
+    flat_gray = np.asarray(gray_img).flatten()
+
+    # Update histogram based
+    # on the gray image intensities
+    for p in flat_gray:
+        histogram[p] += 1
+
+    # Compute CDF for the histogram
+    cdf = [histogram[0]]
+    for x in range(1, len(histogram)):
+        cdf.append(cdf[-1] + histogram[x])
+
+    # Cast cumulative sum
+    # to numpy array
+    cdf = np.asarray(cdf)
+
+    # Normalize histogram
+    # between 0 and 255 and
+    # cast it to uint8
+    numerator = (cdf - cdf.min()) * 255
+    denominator = (cdf.max() - cdf.min())
+    cdf = numerator / denominator
+    cdf = cdf.astype("uint8")
+    cdf = cdf[flat_gray]
+
+    # Reshape our equalized
+    # histogram
+    equalized = np.reshape(cdf, gray_img.shape)
+
+    print("Equalized: ", equalized)
+
+    return equalized
+
 if __name__ == '__main__':
     img_path = sys.argv[1]
 
@@ -164,7 +213,7 @@ if __name__ == '__main__':
     # Select 10 random
     # rectangles within
     # the image
-    for x in range(2):
+    for x in range(10):
         # Randomly select
         # a top left coordinate
         # and a bottom right one
@@ -207,9 +256,20 @@ if __name__ == '__main__':
 #    =========================================================================
     print('Task 2:');
 
+    # Read the image
+    # into grayscale
+    gray_img = read_image(img_path)
 
+    # Equalize image's histogram
+    # using built-in opencv function
+    gray_img_equalized = cv.equalizeHist(gray_img)
+    print("Built-in equalized: ", gray_img_equalized)
+    display_image('2 - a - OpenCV histogram equalization', gray_img_equalized)
 
-
+    # Equalize image's histogram
+    # using custom function
+    gray_img_equalized_custom = equalizeHistogram(gray_img)
+    display_image('2 - b - Custom histogram equalization', gray_img_equalized_custom)
 
 #    =========================================================================
 #    ==================== Task 4 =================================
