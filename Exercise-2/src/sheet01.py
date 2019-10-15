@@ -176,9 +176,15 @@ def equalizeHistogram(gray_img):
     # histogram
     equalized = np.reshape(cdf, gray_img.shape)
 
-    print("Equalized: ", equalized)
-
     return equalized
+
+def absolute_pixel_error(img1, img2):
+    """
+        Returns maximum absolute
+        pixel-wise error.
+    """
+    return np.absolute(np.array(img1) - np.array(img2)).max()
+
 
 if __name__ == '__main__':
     img_path = sys.argv[1]
@@ -210,46 +216,62 @@ if __name__ == '__main__':
 
     print('Task 1c:')
 
-    # Select 10 random
-    # rectangles within
-    # the image
-    for x in range(10):
-        # Randomly select
-        # a top left coordinate
-        # and a bottom right one
-        # in order to retrieve a
-        # rectangle within the original
-        # grayscale image
-        x_center = random.randint(49, height-51)
-        y_center = random.randint(49, width-51)
+    # Generate 10 random
+    # rectangle's centre
+    points = [[random.randint(49, height-51), random.randint(49, width-51)] for x in range(10)]
 
+    # Mean method 1
+    t0 = time.time()
+    for point in points:
         # Define top left and
         # bottom right points
         # of the rectangle
-        x0 = x_center - 49
-        y0 = y_center - 49
-        x1 = x_center + 50
-        y1 = y_center + 50
+        x0 = point[0] - 49
+        y0 = point[1] - 49
+        x1 = point[0] + 50
+        y1 = point[1] + 50
 
         # Compute mean method 1 (loop)
-        t0 = time.time()
         mean_grays_for_loop = mean_gray_for_loop(gray_img, x0, y0, x1, y1)
-        t1 = time.time()
-        print("Mean method1 running time: ", t1 - t0, "\n")
 
-        # Compute mean method 2 (custom integral)
-        t0 = time.time()
-        custom_integral = integral_image(gray_img)
+    t1 = time.time()
+    print("Mean method1 running time: ", t1 - t0, mean_grays_for_loop, "\n")
+
+    # Mean method 2
+    t0 = time.time()
+    custom_integral = integral_image(gray_img)
+    for x in points:
+        # Define top left and
+        # bottom right points
+        # of the rectangle
+        x0 = point[0] - 49
+        y0 = point[1] - 49
+        x1 = point[0] + 50
+        y1 = point[1] + 50
+
+        # Compute mean method integral
         mean_gray_custom_integral = mean_gray_integral(custom_integral, x0, y0, x1, y1)
-        t1 = time.time()
-        print("Mean method2 running time: ", t1 - t0, "\n")
+
+    t1 = time.time()
+    print("Mean method2 running time: ", t1 - t0, mean_gray_custom_integral, "\n")
+
+    # Mean method 3
+    t0 = time.time()
+    opencv_integral = cv.integral(gray_img)[1:, 1:]
+    for x in points:
+        # Define top left and
+        # bottom right points
+        # of the rectangle
+        x0 = point[0] - 49
+        y0 = point[1] - 49
+        x1 = point[0] + 50
+        y1 = point[1] + 50
 
         # Compute mean method 3 (opencv integral image)
-        t0 = time.time()
-        opencv_integral = cv.integral(gray_img)[1:, 1:]
         mean_gray_opencv_integral = mean_gray_integral(opencv_integral, x0, y0, x1, y1)
-        t1 = time.time()
-        print("Mean method3 running time: ", t1 - t0, "\n")
+
+    t1 = time.time()
+    print("Mean method3 running time: ", t1 - t0, mean_gray_opencv_integral, "\n")
 
 #    =========================================================================
 #    ==================== Task 2 =================================
@@ -257,13 +279,12 @@ if __name__ == '__main__':
     print('Task 2:');
 
     # Read the image
-    # into grayscale
+    # as grayscale
     gray_img = read_image(img_path)
 
     # Equalize image's histogram
     # using built-in opencv function
     gray_img_equalized = cv.equalizeHist(gray_img)
-    print("Built-in equalized: ", gray_img_equalized)
     display_image('2 - a - OpenCV histogram equalization', gray_img_equalized)
 
     # Equalize image's histogram
@@ -271,13 +292,23 @@ if __name__ == '__main__':
     gray_img_equalized_custom = equalizeHistogram(gray_img)
     display_image('2 - b - Custom histogram equalization', gray_img_equalized_custom)
 
+    # Output maximum pixel wise error
+    print("Are equal: ", np.array_equal(gray_img_equalized, gray_img_equalized_custom))
+    print("Maximum pixel-wise error: ", absolute_pixel_error(gray_img_equalized, gray_img_equalized_custom))
+
 #    =========================================================================
 #    ==================== Task 4 =================================
 #    =========================================================================
     print('Task 4:');
 
+    # Read the image
+    # as grayscale
+    gray_img = read_image(img_path)
+    display_image('4 - Gray Image', gray_img)
 
-
+    # Gaussian blur
+    gray_gaussian_blur = cv.GaussianBlur(gray_img, (0,0), 2 * (2 ** 1/2))
+    display_image('4 - a - Gray Image (Gaussian Blur)', gray_gaussian_blur)
 
 
 #    =========================================================================
