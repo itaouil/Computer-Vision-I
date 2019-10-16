@@ -170,10 +170,13 @@ def equalizeHistogram(gray_img):
     denominator = (cdf.max() - cdf.min())
     cdf = numerator / denominator
     cdf = cdf.astype("uint8")
+
+    # Map old values
+    # into new domain
     cdf = cdf[flat_gray]
 
     # Reshape our equalized
-    # histogram
+    # histogram to original one
     equalized = np.reshape(cdf, gray_img.shape)
 
     return equalized
@@ -185,6 +188,76 @@ def absolute_pixel_error(img1, img2):
     """
     return np.absolute(np.array(img1) - np.array(img2)).max()
 
+def get_gaussian_kernel(sigma, n = 0):
+    """
+        Compute gaussian kernel
+        size given the size of the
+        kernel and its standard
+        deviation. If the size is omitted
+        and hence is 0 it is estimated
+        from the sigma.
+    """
+    # Our kernel and
+    # its size
+    kernel = None
+    size = n
+
+    # If n is known
+    # populate kernel
+    # with zeros
+    if size != 0:
+        kernel = np.zeros((size, size))
+    # Otherwise estimate
+    # it from the sigma
+    else:
+        size = int((sigma - 0.35) / 0.15)
+        print(size)
+        kernel = np.zeros((size, size))
+
+    # Compute filter values
+    # for the kernel
+    for i in range(size):
+        for j in range(size):
+            kernel[i][j] = np.exp(-(np.power(i, 2) + np.power(j, 2)) / (2 * np.power(sigma, 2)))
+
+    # Normalize kernel so that
+    # sum of filter values are 1
+    kernel /= np.sum(kernel)
+
+    return kernel
+
+def get_sep2D_gaussian_kernel(sigma, n = 0):
+    """
+        Computes row and column
+        kernels for a gaussian.
+    """
+    # Row and Column
+    # kernels
+    kernel_sep_filter = None
+
+    # Kernel size
+    size = n
+
+    # If n is known
+    # populate kernel
+    # with zeros
+    if size != 0:
+        kernel_sep_filter = np.zeros(size)
+    # Otherwise estimate
+    # it from the sigma
+    else:
+        size = int((sigma - 0.35) / 0.15)
+        kernel_sep_filter = np.zeros(size)
+
+    # Compute kernel_rows
+    for i in range(size):
+        kernel_sep_filter[i] = np.exp(-(np.power(i, 2)) / (2 * np.power(sigma, 2)))
+
+    # Normalize kernel so that
+    # sum of filter values are 1
+    kernel_sep_filter /= np.sum(kernel_sep_filter)
+
+    return kernel_sep_filter
 
 if __name__ == '__main__':
     img_path = sys.argv[1]
@@ -306,10 +379,27 @@ if __name__ == '__main__':
     gray_img = read_image(img_path)
     display_image('4 - Gray Image', gray_img)
 
-    # Gaussian blur
-    gray_gaussian_blur = cv.GaussianBlur(gray_img, (0,0), 2 * (2 ** 1/2))
+    # Gaussian Blur
+    gray_gaussian_blur = cv.GaussianBlur(gray_img, (3,3), 2 * np.power(2, 1/2))
     display_image('4 - a - Gray Image (Gaussian Blur)', gray_gaussian_blur)
 
+    # 2D Filter Blur
+    gray_filter_2d_blur = cv.filter2D(gray_img, -1, get_gaussian_kernel(2 * np.power(2,1/2), 3))
+    display_image('4 - b - Gray Image (2D Filter Blur)', gray_filter_2d_blur)
+
+    # 2D Sep Filter Blur
+    sep_kernel = get_sep2D_gaussian_kernel(2 * np.power(2,1/2), 3)
+    gray_filter_sep_blur = cv.sepFilter2D(gray_img, -1, sep_kernel, sep_kernel)
+    display_image('4 - b - Gray Image (2D Sep Filter Blur)', gray_filter_sep_blur)
+
+    # Gaussian blur - 2D Filter blur maximum pixel error
+    print("Gaussian blur - 2D Filter blur maximum pixel error: ", absolute_pixel_error(gray_gaussian_blur, gray_filter_2d_blur))
+
+    # Gaussian blur - 2D Sep blur maximum pixel error
+    print("Gaussian blur - 2D Sep blur maximum pixel error: ", absolute_pixel_error(gray_gaussian_blur, gray_filter_sep_blur))
+
+    # Gaussian blur - 2D Sep blur maximum pixel error
+    print("2D Filter - 2D Sep Filter maximum pixel error: ", absolute_pixel_error(gray_filter_2d_blur, gray_filter_sep_blur))
 
 #    =========================================================================
 #    ==================== Task 6 =================================
