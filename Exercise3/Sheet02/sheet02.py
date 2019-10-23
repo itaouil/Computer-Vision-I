@@ -3,7 +3,48 @@ import time
 import sys
 import numpy as np
 from matplotlib import pyplot as plt
-np.set_printoptions(threshold=sys.maxsize)
+
+def get_gaussian_kernel(sigma, n = 0):
+    """
+        Compute gaussian kernel
+        size given the size of the
+        kernel and its standard
+        deviation. If the size is omitted
+        and hence is 0 it is estimated
+        from the sigma.
+    """
+    # Our kernel and
+    # its size
+    kernel = None
+    size = n
+
+    # If n is known
+    # populate kernel
+    # with zeros
+    if size != 0:
+        kernel = np.zeros((size, size))
+    # Otherwise estimate
+    # it from the sigma
+    else:
+        size = int((sigma - 0.35) / 0.15)
+        kernel = np.zeros((size, size))
+
+    # Compute filter values
+    # for the kernel
+    for i in range(size):
+        for j in range(size):
+            # Adapt i and j to have
+            # the correct position in
+            # the kernel
+            x = (i - (size - 1) // 2)
+            y = (j - (size - 1) // 2)
+            kernel[i][j] = np.exp(-(np.power(x, 2) + np.power(y, 2)) / (2 * np.power(sigma, 2)))
+
+    # Normalize kernel so that
+    # sum of filter values are 1
+    kernel /= np.sum(kernel)
+
+    return kernel
 
 def display_image(window_name, img):
     """
@@ -29,22 +70,45 @@ def mean_absolute_difference(img1, img2):
     return np.absolute(mean_img1 - mean_img2)
 
 def get_convolution_using_fourier_transform(image, kernel):
+    # Get image size
+    h, w = image.shape
+
+    # Get half kernel size
+    hk_size = (kernel.shape[0]) // 2
+
     # Compute FFT of image
-    # and shift 0 frequency
-    # components
+    # and shift fft matrix
     ftimage = np.fft.fft2(image)
-    ftshift = np.fft.fftshift(ftimage)
-    magnitude_spectrum = 20 * np.log(np.abs(ftshift))
-    magnitude_spectrum = np.asarray(magnitude_spectrum, dtype=np.uint8)
-    display_image('Task1: Magn. Spect', magnitude_spectrum)
+    ftimage = np.fft.fftshift(ftimage)
+    # print("FFT shift size: ", ftimage.shape)
+    # magnitude_spectrum = 20 * np.log(np.abs(ftimage))
+    # magnitude_spectrum = np.asarray(magnitude_spectrum, dtype=np.uint8)
+    # display_image('Task1: Magn. Spect', magnitude_spectrum)
 
-    # Blur image with kernel
-    # in the spectrum domain
-    ftimagep = ftimage * kernel
+    # Pad kernel with 0s
+    # around to be the same
+    # size as the original image
+    c_x, c_y = h//2, w//2
+    kernel_pad = np.zeros((image.shape[0], image.shape[1]))
+    kernel_pad[c_x - hk_size:c_x + hk_size+1, c_y - hk_size:c_y + hk_size+1] = kernel
 
-    # Return image as
-    # matrix
-    return np.abs(f_blur)
+    # Compute FFT of kernel
+    # and shift fft matrix
+    kernel_pad_fft = np.fft.fft2(kernel_pad)
+    kernel_pad_fft = np.fft.fftshift(kernel_pad_fft)
+
+    # Compute blurring in
+    # spectrum domain
+    blur_fft = ftimage * kernel_pad_fft
+
+    # Compute inverse FFT
+    # and inverse shift
+    blur_fft = np.fft.ifftshift(blur_fft)
+    blur_fft = np.fft.ifft2(blur_fft)
+
+    # Return blurred image
+    magnitude_spectrum = np.abs(blur_fft)
+    return np.asarray(magnitude_spectrum, dtype=np.uint8)
 
 def task1():
     # Read image
@@ -52,7 +116,8 @@ def task1():
     display_image('Task1: Image', image)
 
     # Get gaussian kernel
-    kernel = cv2.getGaussianKernel(7, 1)
+    # kernel = cv2.getGaussianKernel(7, 1)
+    kernel = get_gaussian_kernel(1, 7)
 
     # Convolute image gaussian kernel
     conv_result = cv2.filter2D(image, -1, kernel)
@@ -60,7 +125,7 @@ def task1():
 
     # Convolute image using FFT
     fft_result = get_convolution_using_fourier_transform(image, kernel)
-    # display_image('Task1: FFT', fft_result)
+    display_image('Task1: FFT', fft_result)
 
     # compare results
     print("(Task1) - Mean absolute difference: ", mean_absolute_difference(conv_result, fft_result))
@@ -97,11 +162,11 @@ def task3():
     image = cv2.imread("./data/traffic.jpg", 0)
     template = cv2.imread("./data/template.jpg", 0)
 
-    cv_pyramid = build_gaussian_pyramid_opencv(image, 8)
-    mine_pyramid = build_gaussian_pyramid(image, 8)
+    # cv_pyramid = build_gaussian_pyramid_opencv(image, 8)
+    # mine_pyramid = build_gaussian_pyramid(image, 8)
 
     # compare and print mean absolute difference at each level
-    result = template_matching_multiple_scales(pyramid, template)
+    # result = template_matching_multiple_scales(pyramid, template)
 
     # show result
 
