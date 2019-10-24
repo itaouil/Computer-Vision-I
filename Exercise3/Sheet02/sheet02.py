@@ -74,108 +74,33 @@ def task1():
     # mean_absolute_difference(conv_result, fft_result))
 
 
-def apply_border(image, template):
-    height, width = template.shape
-    h2 = (height - 1) // 2
-    w2 = (width - 1) // 2
-
-    image = cv2.copyMakeBorder(
-        image, h2, h2, w2, w2, cv2.BORDER_CONSTANT, value=0).astype(np.float)
-    return image, height, width, h2, w2
-
-
-def remove_border(image, h2, w2):
-    return image[h2: image.shape[0] - h2, w2: image.shape[1] - w2].astype(np.uint8)
-
-
-def normalize(image):
-    return (((image - image.min()) /
-             (image.max() - image.min())) * 255).astype(np.uint8)
-
-
-def threshold(image, foreground=255):
-    perc_70 = int(255 * 0.7)
-    return np.where(image >= perc_70, foreground, 0).astype(np.uint8)
-
-
-def draw_rectangles(image, positions, h2, w2):
+def draw_rectangles(image, positions, height, width):
     point_saved = (-1, -1)
+    image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
     for point in zip(*positions[::-1]):  # draw the rectangle around the matched template
-        if point_saved == (-1, -1) or point[0] > (point_saved[0] + h2) or point[1] > (point_saved[1] + w2):
-            cv2.rectangle(image, (point[0] - w2, point[1] - h2), (point[0] + w2, point[1] + h2), (0, 204, 153), 1)
+        if point_saved == (-1, -1) or point[0] > (point_saved[0] + height) or point[1] > (point_saved[1] + width):
+            cv2.rectangle(image, (point[0], point[1]), (point[0] + width, point[1] + height), (255, 0, 153), 1)
             point_saved = point
     return image
 
 
-def sum_square_difference(image, template):
-    foreground = 255
-    image, height, width, h2, w2 = apply_border(image, template)
-    image_sum = image.copy()
-
-    for y in range(h2, image.shape[0] - h2):
-        print(y)
-        for x in range(w2, image.shape[1] - w2):
-            sum = 0
-            for k in range(-h2, h2 + 1):
-                for l in range(-w2, w2 + 1):
-                    sum += (template[k, l] - image[y + k, x + l]) ** 2
-            image_sum[y, x] = sum
-
-    image_sum = normalize(image_sum)
-    image_thres = threshold(image_sum, foreground)
-    image_thres = remove_border(image_thres, h2, w2)
-    positions = np.where(image_thres == foreground)
-    image = draw_rectangles(image, positions, h2, w2)
-    return image
-
-
-def cross_correlation(image_w, template):
+def ncc(image, template):
     dg = template - template.mean()
-    df = image_w - image_w.mean()
+    df = image - image.mean()
     num = np.sum(dg * df)
-    den = dg.std() * df.std()
+    den = np.sqrt(np.sum(np.power(dg, 2)) * np.sum(np.power(df, 2)))
     return num / den
 
 
 def normalized_cross_correlation(image, template):
-    foreground = 255
-    image_copy = image.copy()
-    image_copy, height, width, h2, w2 = apply_border(image_copy, template)
-    image_norm = image_copy.copy()
-    # template mean
-    t_mean = np.sum(template[height: width]) / (height * width)
+    height, width = template.shape
+    image_norm = np.zeros((image.shape[0] - height + 1, image.shape[1] - width + 1), dtype=np.float64)
+    for y in range(image_norm.shape[0]):
+        for x in range(image_norm.shape[1]):
+            image_norm[y, x] = ncc(image[y: (y + height), x: (x + width)], template)
 
-    # NCC computation
-    for y in range(h2, image_copy.shape[0] - h2):
-        print(y)
-        for x in range(w2, image_copy.shape[1] - w2):
-            # i_window = image_norm[(y - h2): ((y + h2) + 1), (x - w2): ((x + w2) + 1)]
-            # image_norm[y, x] = cross_correlation(i_window, template)
-            # image window mean
-            i_mean = np.sum(
-                image_copy[(y - h2): ((y + h2) + 1), (x - w2): ((x + w2) + 1)]) / (height * width)
-
-            # get the NCC value
-            num, denum, dG, dF = 0, 0, 0, 0
-            for k in range(-h2, h2 + 1):
-                for l in range(-w2, w2 + 1):
-                    dg = template[k + h2, l + w2] - t_mean
-                    df = image_copy[y + k, x + l] - i_mean
-                    num += dg * df
-                    dG += pow(dg, 2)
-                    dF += pow(df, 2)
-
-            denum = pow((dG * dF), 0.5)
-            image_norm[y, x] = num / denum
-    # -- (end) NCC computation
-
-    display_image('NCC', image_norm)
-    image_norm = normalize(image_norm)
-
-    image_thres = threshold(image_norm, foreground)
-    image_thres = remove_border(image_thres, h2, w2)
-    positions = np.where(image_thres == foreground)
-    image = draw_rectangles(image, positions, h2, w2)
+    points = np.where(image_norm >= 0.7)
+    image = draw_rectangles(image, points, height, width)
     return image
 
 
@@ -184,11 +109,12 @@ def task2():
     template = cv2.imread("./data/eye.png", 0)
 
     # TODO: remove comment
-    # result_ncc = normalized_cross_correlation(image, template)
-    # display_image('NCC', result_ncc)
+    result_ncc = normalized_cross_correlation(image, template)
+    display_image('NCC', result_ncc)
 
-    # resutl_cv_ncc = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
-    # display_image('NCC', image)
+    resutl_cv_ncc = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
+    display_image('NCC', resutl_cv_ncc)
+
 
 def gaussian_blur(img):
     kernel = np.array([[1, 4, 6, 4, 1],
