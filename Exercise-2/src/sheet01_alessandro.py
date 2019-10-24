@@ -13,7 +13,6 @@ def display_image(window_name, img):
     :param img: image object to display
     """
     cv.imshow(window_name, img)
-
     cv.waitKey(0)
     cv.destroyAllWindows()
 

@@ -169,8 +169,8 @@ def normalized_cross_correlation(image, template):
             image_norm[y, x] = num / denum
     # -- (end) NCC computation
 
-    image_norm = normalize(image_norm)
     display_image('NCC', image_norm)
+    image_norm = normalize(image_norm)
 
     image_thres = threshold(image_norm, foreground)
     image_thres = remove_border(image_thres, h2, w2)
@@ -183,16 +183,45 @@ def task2():
     image = cv2.imread("./data/lena.png", 0)
     template = cv2.imread("./data/eye.png", 0)
 
-    result_ncc = normalized_cross_correlation(image, template)
-    display_image('NCC', result_ncc)
+    # TODO: remove comment
+    # result_ncc = normalized_cross_correlation(image, template)
+    # display_image('NCC', result_ncc)
+
+    # resutl_cv_ncc = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
+    # display_image('NCC', image)
+
+def gaussian_blur(img):
+    kernel = np.array([[1, 4, 6, 4, 1],
+                       [4, 16, 24, 16, 4],
+                       [6, 24, 36, 24, 6],
+                       [4, 16, 24, 16, 4],
+                       [1, 4, 6, 4, 1]], dtype=np.float64)
+    kernel /= 256
+    return cv2.filter2D(img, -1, kernel)
+
+
+def build_gaussian_pyramid(image, num_levels):
+    levels = []
+    next_level = image.copy()
+    for _ in range(num_levels):
+        levels.append(next_level)
+        next_level = gaussian_blur(next_level)[::2, ::2]
+    return levels
 
 
 def build_gaussian_pyramid_opencv(image, num_levels):
-    return None
+    levels = []
+    next_level = image.copy()
+    for _ in range(num_levels):
+        levels.append(next_level)
+        next_level = cv2.pyrDown(next_level)
+    return levels
 
 
-def build_gaussian_pyramid(image, num_levels, sigma):
-    return None
+def mean_abs_error(img1, img2):
+    img1 = img1.copy().astype(np.int32)
+    img2 = img2.copy().astype(np.int32)
+    return abs(img1 - img2).mean()
 
 
 def template_matching_multiple_scales(pyramid, template):
@@ -200,14 +229,19 @@ def template_matching_multiple_scales(pyramid, template):
 
 
 def task3():
+    levels = 4
     image = cv2.imread("./data/traffic.jpg", 0)
     template = cv2.imread("./data/template.jpg", 0)
 
-    cv_pyramid = build_gaussian_pyramid_opencv(image, 8)
-    mine_pyramid = build_gaussian_pyramid(image, 8)
+    mine_pyramid = build_gaussian_pyramid(image, levels)
+    cv_pyramid = build_gaussian_pyramid_opencv(image, levels)
+
+    for lvl in range(levels):
+        mae = mean_abs_error(mine_pyramid[lvl], cv_pyramid[lvl])
+        print('Mean abs error (level: {}): {}'.format(lvl, mae))
 
     # compare and print mean absolute difference at each level
-    result = template_matching_multiple_scales(pyramid, template)
+    # result = template_matching_multiple_scales(pyramid, template)
 
     # show result
 
