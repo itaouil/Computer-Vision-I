@@ -3,7 +3,10 @@ import time
 import sys
 import numpy as np
 from matplotlib import pyplot as plt
-# np.set_printoptions(precision=5)
+
+def normalize(image):
+    # Normalize between 0 and 255
+    return ((image - image.min()) / (image.max() - image.min())) * 255
 
 def get_gaussian_derivative(kernel, derivative_k):
     # Get kernel shape
@@ -90,16 +93,9 @@ def display_image(window_name, img):
 
 def mean_absolute_difference(img1, img2):
     """
-        Computes the mean
-        difference between
-        two images.
+        Mean of absolute difference
     """
-    # Compute mean of the
-    # two images
-    mean_img1 = np.sum(img1)/np.size(img1)
-    mean_img2 = np.sum(img2)/np.size(img2)
-
-    return int(np.around(np.absolute(mean_img1 - mean_img2)))
+    return np.mean(np.abs(img1.astype(np.float32) - img2.astype(np.float32)))
 
 def get_convolution_using_fourier_transform(image, kernel):
     # Get image size
@@ -226,26 +222,133 @@ def task4():
     display_image("Magnitude", magnitude.astype(np.uint8))
     display_image("Direction", direction.astype(np.uint8))
 
+def l2_distance_transform_1D(f, positive_inf, negative_inf):
+    # Edges size
+    n = f.size
+    # print("N: ", n)
+
+    if np.allclose(f, np.repeat(positive_inf, n)):
+        return f
+
+    # Variables to be used
+    v = np.zeros(n)
+    z = np.zeros(n + 1)
+
+    # Set variable
+    k = 0
+    v[0] = 0
+    z[0] = negative_inf
+    z[1] = positive_inf
+
+    for q in range(1, n):
+        s = ((f[q] + q ** 2) - (f[int(v[k])] + v[k] ** 2)) / (2*q - 2*v[k])
+        while s <= z[k]:
+            k = k - 1
+            s = ((f[q] + q ** 2) - (f[int(v[k])] + v[k] ** 2)) / (2*q - 2*v[k])
+
+        k = k + 1
+        v[k] = q
+        z[k] = s
+        z[k+1] = positive_inf
+
+    k = 0
+    df = np.zeros(n)
+    for q in range(n):
+        while z[k+1] < q:
+            k = k + 1
+        df[q] = (q - v[k]) ** 2 + f[int(v[k])]
+
+    return df
+
+# def l2_distance_transform_1D(f, positive_inf, negative_inf):
+#     n = len(f)
+#     if np.allclose(f,np.repeat(positive_inf,n)):
+#         return f
+#     k = 0
+#     v = np.zeros(n,int)
+#     z = np.zeros(n)
+#     z[0] = negative_inf
+#     z[1] = positive_inf
+#     for q in range(1,n):
+#         s = f[q] + q**2 - f[v[k]] - v[k]**2
+#     #    print(s)
+#         s = s/(2*(q - v[k]))
+#     #    print(s)
+#     #    print('q',q,'k',k,'f[q]',f[q],'v[k]',v[k],'f[v[k]]',f[v[k]],'s',s)
+#         while s <= z[k]:
+#             k = k - 1
+#             s = f[q] + q**2 - f[v[k]] - v[k]**2
+#             s = s/(2*(q - v[k]))
+#         k = k + 1
+#         v[k] = q
+#         z[k] = s
+#         z[k + 1] = positive_inf
+#     k = 0
+#     D_f = np.zeros(n)
+#     for q in range(0,n):
+#         while z[k+1] < q:
+#             k = k + 1
+#         D_f[q] = (q-v[k])**2 + f[v[k]]
+#     return D_f
+
 def l2_distance_transform_2D(edge_function, positive_inf, negative_inf):
-    return None
+    # Compute distance transform
+    # for each column of our function
+    for x in range(edge_function.shape[1]):
+        edge_function[:, x] = l2_distance_transform_1D(edge_function[:, x], positive_inf, negative_inf)
+
+    # Compute distance transform
+    # for each row of our function
+    for y in range(edge_function.shape[0]):
+        edge_function[y, :] = l2_distance_transform_1D(edge_function[y, :], positive_inf, negative_inf)
+
+    return np.sqrt(edge_function)
+
+# def l2_distance_transform_2D(edge_function, positive_inf, negative_inf):
+#     D_edge_function = np.zeros(edge_function.shape)
+#     n, m = edge_function.shape
+#     for i in range(n):
+#         D_edge_function[i,:] = l2_distance_transform_1D(edge_function[i,:],positive_inf,negative_inf)
+#     for j in range(m):
+#         D_edge_function[:,j] = l2_distance_transform_1D(D_edge_function[:,j],positive_inf,negative_inf)
+#     return np.sqrt(D_edge_function)
 
 def task5():
+    # Positive inf and negative inf
+    positive_inf = 1000000000.0
+    negative_inf = -positive_inf
+
+    # Read traffic image
     image = cv2.imread("./data/traffic.jpg", 0)
 
-    edges = None  # compute edges
-    edge_function = None  # prepare edges for distance transform
+    # Get image shape
+    n, m = image.shape[:2]
 
-    dist_transfom_mine = l2_distance_transform_2D(
-        edge_function, positive_inf, negative_inf
-    )
-    dist_transfom_cv = None  # compute using opencv
+    # Compute edges after blurring image
+    blurred = cv2.GaussianBlur(image.copy(), (0, 0), 1)
+    edges = cv2.Canny(blurred, 100, 200)
 
-    # compare and print mean absolute difference
+    # Edges function
+    edge_function = np.zeros(edges.shape)
+    edge_function[edges == 255] = 0
+    edge_function[edges != 255] = positive_inf
 
+    # Custom distance transform
+    dist_transfom = l2_distance_transform_2D(edge_function, positive_inf, negative_inf)
+
+    # OpenCV distance transform
+    dist_transfom_cv = cv2.distanceTransform(image, cv2.DIST_L2, 5)
+
+    # Mean absolute error
+    print("Task 5, mean absolute difference: ", mean_absolute_difference(dist_transfom_cv, dist_transfom))
+
+    # Distance transforms
+    display_image("Dist transform CV: ", dist_transfom_cv.astype(np.uint8))
+    display_image("Dist transform: ", normalize(dist_transfom).astype(np.uint8))
 
 if __name__ == "__main__":
-    task1()
-    task2()
-    task3()
-    task4()
-    # task5()
+    # task1()
+    # task2()
+    # task3()
+    # task4()
+    task5()
