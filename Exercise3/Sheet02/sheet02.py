@@ -76,14 +76,23 @@ def task1():
 
 def draw_rectangles(image, yxs, temp_shape):
     height, width = temp_shape
-    yx_saved = (-1, -1)
     image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
-    for y, x in yxs:  # draw the rectangle around the matched template
+    for yx in yxs:  # draw the rectangle around the matched template
+        y = yx[0]
+        x = yx[1]
         cv2.rectangle(image, (x, y), (x + width, y + height), (255, 0, 153), 1)
     return image
 
 
 def ncc(image, template):
+    """
+    Normalized Cross Correlation for
+    the single pixel.
+    :param image: the interested image
+    :param template: the template
+    :return: the computed value of
+    the pixel.
+    """
     dg = template - template.mean()
     df = image - image.mean()
     num = np.sum(dg * df)
@@ -96,10 +105,9 @@ def normalized_cross_correlation(image, template, threshold=0.7):
     Normalized Cross Correlation
     :param image: the image
     :param template: the template
-    :param draw: True if we want to draw a rectangle over the image.
-    :param threshold: this define the threshold to get the point
-    of matching.
-    :return:
+    :param threshold: the threshold
+    :return: the matched indexes and the
+    image with drown rectangles.
     """
     height, width = template.shape
     image_norm = np.zeros((image.shape[0] - height + 1, image.shape[1] - width + 1), dtype=np.float64)
@@ -116,8 +124,8 @@ def task2():
     image = cv2.imread("./data/lena.png", 0)
     template = cv2.imread("./data/eye.png", 0)
 
-    # _, result_ncc = normalized_cross_correlation(image, template)
-    # display_image('NCC', result_ncc)
+    _, result_ncc = normalized_cross_correlation(image, template)
+    display_image('NCC', result_ncc)
 
 
 def gaussian_blur(img):
@@ -154,89 +162,90 @@ def mean_abs_error(img1, img2):
     return abs(img1 - img2).mean()
 
 
-def template_matching_multiple_scales(pyr_image, pyr_template, yx=(-1, -1), level=-1):
+def template_matching_multiple_scales(pyr_image, pyr_template):
+    found_yxs = []
     first_level = len(pyr_image) - 1
     final_image = pyr_image[0]
     template = pyr_template[0]
-    if level == -1:
-        yxs_final = []
-        # first iteration of the pyramid
-        yxs, image_match = normalized_cross_correlation(pyr_image[first_level], pyr_template[first_level], 0.8)
-        for yx in yxs:
-            yxs_final.append(template_matching_multiple_scales(pyr_image, pyr_template, yx=yx, level=first_level))
-        for yx in yxs_final:
-            if yx is not None:
-                final_image = draw_rectangles(final_image, yx, template.shape)
-    elif level > 0 and yx != (-1, -1):
-        level -= 1
-        image = pyr_image[level]
-        template = pyr_template[level]
 
-        # get the interested area to match the template
-        yxs_ai, area_inter = get_area_interest(yx, image, image.shape, template.shape)
-        # match the template
-        yx_temp, image_match = normalized_cross_correlation(area_inter, template, 0.8)
+    # get the matching coordinate of the last layer
+    yxs, image_match = normalized_cross_correlation(pyr_image[-1], pyr_template[-1], 0.8)
+    for yx in yxs:
+        found_yx = next_pyramid_iter(pyr_image, pyr_template, yx, first_level)
+        # saving the found templates
+        if found_yx is not None:
+            found_yxs.append(found_yx)
 
-        if not yx_temp:
-            # not found
-            return None
-        elif level == 0:
-            # found
-            return yxs_ai[0] + yx_temp
+    return draw_rectangles(final_image, found_yxs, template.shape)
 
-        # get the real yx coordinate
-        # for the next layer
-        yx = yxs_ai[0] + yx_temp
-        yx = (yx[0, 0], yx[0, 1])
-        return template_matching_multiple_scales(pyr_image, pyr_template, yx=yx, level=level)
-    return final_image
 
-def get_area_interest(yx, image, i_shape, t_shape):
+def next_pyramid_iter(pyr_image, pyr_template, yx, level):
+    # successive iteration of the pyramid
+    level -= 1
+    image = pyr_image[level]
+    template = pyr_template[level]
+
+    # get the interested area and matching the template
+    yxs_area, inter_area = get_interest_area(yx, image, template.shape)
+    yx_temp, image_match = normalized_cross_correlation(inter_area, template, 0.8)
+    # matching not successful
+    if not yx_temp:
+        return None
+
+    # update the real yx coordinate
+    # from the interest coordinate
+    yx = yxs_area[0] + yx_temp[0]
+    # found: return the coordinate
+    # of the found pattern
+    if level == 0:
+        return yx
+
+    return next_pyramid_iter(pyr_image, pyr_template, yx, level)
+
+
+def get_interest_area(yx, image, t_shape):
+    """
+    Get the interested area that contain the
+    matched template.
+    :param yx: starting point of the
+    found template.
+    :param image: image of the current layer.
+    :param t_shape: shape of the current template.
+    :return: return a matrix with the coordinate
+    of the interested area.
+    """
     t_height, t_width = t_shape
-    i_height, i_width = i_shape
-    h2, w2 = int(t_height / 2), int(t_width / 2)
-    # weights to get the interested area
-    w_match = np.array([[-h2, -w2], [+h2, +w2]], dtype=np.int64)
-    # matching area founded
+    h2, w2 = int(t_shape[0] / 2), int(t_shape[1] / 2)
+    # retrieve the coordinate of the next level
+    yx = np.array(yx, dtype=np.int64) * 2
+    # creation of the weighted matrix
+    w_match = np.array([[-h2, -w2], [h2, w2]], dtype=np.int64)
+    # creation of the matrix containing the
+    # coordinate of the matching template
     yxs_am = np.array([yx, [yx[0] + t_height, yx[1] + t_width]], dtype=np.int64)
     # calculation of the indexes of the interested
     # area of the current layer
-    yxs_ai = (yxs_am + w_match) * 2
-
-    # correct index if out of index
-    if yxs_ai[0, 0] < 0:
-        yxs_ai[1, 0] += abs(yxs_ai[0, 0])
-        yxs_ai[0, 0] = 0
-    if yxs_ai[0, 1] < 0:
-        yxs_ai[1, 1] += abs(yxs_ai[0, 0])
-        yxs_ai[0, 1] = 0
-    if yxs_ai[1, 0] > i_height:
-        dif = yxs_ai[1, 0] - i_width
-        yxs_ai[0, 0] -= dif
-        yxs_ai[1, 0] -= dif
-    if yxs_ai[1, 1] > i_width:
-        dif = yxs_ai[1, 1] - i_width
-        yxs_ai[0, 1] -= dif
-        yxs_ai[1, 1] -= dif
-
-    area_inter = image[yxs_ai[0, 0]: yxs_ai[1, 0], yxs_ai[0, 1]: yxs_ai[1, 1]]
-    return yxs_ai, area_inter
+    yxs = yxs_am + w_match
+    # cut the interested area from the image
+    area_inter = image[yxs[0, 0]: yxs[1, 0], yxs[0, 1]: yxs[1, 1]]
+    return yxs, area_inter
 
 
 def get_yxs_tuples(points, shape):
     """
-    Get the first y,x from a list of points.
-    :param points: [[y1,...,xn],[y1,...,xn]] array that
-    contains other two array with a list of points.
-    :return: return an array with only two values, y and x.
+    Get a matrix of found points.
+    :param shape: shape of the template.
+    :param points: iterable of points.
+    :return: return a matrix with y and x as
+    row for every found matching.
     """
     yxs = []
     yx_saved = (-1, -1)
     height, width = shape
     for y, x in points:
         if yx_saved == (-1, -1) or y > (yx_saved[0] + height) or x > (yx_saved[1] + width):
-            yxs.append((y, x))
-            yx_saved = (y, x)
+            yx_saved = [y, x]
+            yxs.append(yx_saved)
     return yxs
 
 
@@ -264,7 +273,6 @@ def task3():
     result = template_matching_multiple_scales(mine_pyramid, mine_pyramid_t)
     print('Time elapsed for Pyramid NCC: {}'.format(time.time() - start))
     display_image('Time elapsed NCC', result)
-
 
 
 def get_derivative_of_gaussian_kernel(size, sigma):
