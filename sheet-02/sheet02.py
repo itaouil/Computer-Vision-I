@@ -1,12 +1,13 @@
 import cv2
 import time
-import sys
 import numpy as np
 from matplotlib import pyplot as plt
+
 
 def normalize(image):
     # Normalize between 0 and 255
     return ((image - image.min()) / (image.max() - image.min())) * 255
+
 
 def get_gaussian_derivative(kernel, derivative_k):
     # Get kernel shape
@@ -15,8 +16,8 @@ def get_gaussian_derivative(kernel, derivative_k):
 
     # Looping variables
     # based on derivative kernel
-    y_range = kH - 1 if derivative_k.shape == (2,1) else kH
-    x_range = kW - 1 if derivative_k.shape == (1,2) else kW
+    y_range = kH - 1 if derivative_k.shape == (2, 1) else kH
+    x_range = kW - 1 if derivative_k.shape == (1, 2) else kW
 
     # Output
     output = np.zeros((kH, kW))
@@ -25,21 +26,22 @@ def get_gaussian_derivative(kernel, derivative_k):
     for y in range(y_range):
         for x in range(x_range):
             # Extract ROI
-            roi = kernel[y:y+dH, x:x+dW]
+            roi = kernel[y:y + dH, x:x + dW]
 
             # Perform derivation as convolution
-            k = (roi.flatten()[::-1].reshape(dH,dW) * derivative_k).sum()
+            k = (roi.flatten()[::-1].reshape(dH, dW) * derivative_k).sum()
 
             # store the convolved value in the output (x,y)-
             # coordinate of the output image
-            if derivative_k.shape == (1,2):
-                output[y, x+1] = k
+            if derivative_k.shape == (1, 2):
+                output[y, x + 1] = k
             else:
-                output[y+1, x] = k
+                output[y + 1, x] = k
 
     return output
 
-def get_gaussian_kernel(sigma, n = 0):
+
+def get_gaussian_kernel(sigma, n=0):
     """
         Compute gaussian kernel
         size given the size of the
@@ -64,12 +66,12 @@ def get_gaussian_kernel(sigma, n = 0):
         size = int((sigma - 0.35) / 0.15)
         kernel = np.zeros((size, size))
 
-    # Compute filter values
+    #  Compute filter values
     # for the kernel
     for i in range(size):
         for j in range(size):
             # Adapt i and j to have
-            # the correct position in
+            #  the correct position in
             # the kernel
             x = (i - (size - 1) // 2)
             y = (j - (size - 1) // 2)
@@ -109,13 +111,13 @@ def get_convolution_using_fourier_transform(image, kernel):
     hk_size = (kernel.shape[0]) // 2
 
     # Compute FFT of image
-    # and shift fft matrix
+    #  and shift fft matrix
     ftimage = np.fft.fft2(image)
 
     # Pad kernel with 0s
     # around to be the same
     # size as the original image
-    c_x, c_y = h//2, w//2
+    c_x, c_y = h // 2, w // 2
     kernel_pad = np.zeros((image.shape[0], image.shape[1]))
     kernel_pad[0:k_size, 0:k_size] = kernel
 
@@ -362,7 +364,7 @@ def task4():
     kernel = get_gaussian_kernel(0.6, 5)
 
     # Derivative kernel
-    derivative_kernel = np.asarray([-1, 1]).reshape(1,2)
+    derivative_kernel = np.asarray([-1, 1]).reshape(1, 2)
 
     # Get derivatives for x
     # and y of the kernel
@@ -384,6 +386,7 @@ def task4():
     display_image("Magnitude", magnitude.astype(np.uint8))
     display_image("Direction", direction.astype(np.uint8))
 
+
 def l2_distance_transform_1D(f, positive_inf, negative_inf):
     # Edges size
     n = f.size
@@ -403,60 +406,29 @@ def l2_distance_transform_1D(f, positive_inf, negative_inf):
     z[1] = positive_inf
 
     for q in range(1, n):
-        s = ((f[q] + q ** 2) - (f[int(v[k])] + v[k] ** 2)) / (2*q - 2*v[k])
+        s = ((f[q] + q ** 2) - (f[int(v[k])] + v[k] ** 2)) / (2 * q - 2 * v[k])
         while s <= z[k]:
             k = k - 1
-            s = ((f[q] + q ** 2) - (f[int(v[k])] + v[k] ** 2)) / (2*q - 2*v[k])
+            s = ((f[q] + q ** 2) - (f[int(v[k])] + v[k] ** 2)) / (2 * q - 2 * v[k])
 
         k = k + 1
         v[k] = q
         z[k] = s
-        z[k+1] = positive_inf
+        z[k + 1] = positive_inf
 
     k = 0
     df = np.zeros(n)
     for q in range(n):
-        while z[k+1] < q:
+        while z[k + 1] < q:
             k = k + 1
         df[q] = (q - v[k]) ** 2 + f[int(v[k])]
 
     return df
 
-# def l2_distance_transform_1D(f, positive_inf, negative_inf):
-#     n = len(f)
-#     if np.allclose(f,np.repeat(positive_inf,n)):
-#         return f
-#     k = 0
-#     v = np.zeros(n,int)
-#     z = np.zeros(n)
-#     z[0] = negative_inf
-#     z[1] = positive_inf
-#     for q in range(1,n):
-#         s = f[q] + q**2 - f[v[k]] - v[k]**2
-#     #    print(s)
-#         s = s/(2*(q - v[k]))
-#     #    print(s)
-#     #    print('q',q,'k',k,'f[q]',f[q],'v[k]',v[k],'f[v[k]]',f[v[k]],'s',s)
-#         while s <= z[k]:
-#             k = k - 1
-#             s = f[q] + q**2 - f[v[k]] - v[k]**2
-#             s = s/(2*(q - v[k]))
-#         k = k + 1
-#         v[k] = q
-#         z[k] = s
-#         z[k + 1] = positive_inf
-#     k = 0
-#     D_f = np.zeros(n)
-#     for q in range(0,n):
-#         while z[k+1] < q:
-#             k = k + 1
-#         D_f[q] = (q-v[k])**2 + f[v[k]]
-#     return D_f
-
 
 def l2_distance_transform_2D(edge_function, positive_inf, negative_inf):
     # Compute distance transform
-    # for each column of our function
+    #  for each column of our function
     for x in range(edge_function.shape[1]):
         edge_function[:, x] = l2_distance_transform_1D(edge_function[:, x], positive_inf, negative_inf)
 
@@ -466,15 +438,6 @@ def l2_distance_transform_2D(edge_function, positive_inf, negative_inf):
         edge_function[y, :] = l2_distance_transform_1D(edge_function[y, :], positive_inf, negative_inf)
 
     return np.sqrt(edge_function)
-
-# def l2_distance_transform_2D(edge_function, positive_inf, negative_inf):
-#     D_edge_function = np.zeros(edge_function.shape)
-#     n, m = edge_function.shape
-#     for i in range(n):
-#         D_edge_function[i,:] = l2_distance_transform_1D(edge_function[i,:],positive_inf,negative_inf)
-#     for j in range(m):
-#         D_edge_function[:,j] = l2_distance_transform_1D(D_edge_function[:,j],positive_inf,negative_inf)
-#     return np.sqrt(D_edge_function)
 
 
 def task5():
@@ -509,6 +472,7 @@ def task5():
     # Distance transforms
     display_image("Dist transform CV: ", dist_transfom_cv.astype(np.uint8))
     display_image("Dist transform: ", normalize(dist_transfom).astype(np.uint8))
+
 
 if __name__ == "__main__":
     task1()
