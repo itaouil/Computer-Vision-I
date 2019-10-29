@@ -2,21 +2,95 @@ import numpy as np
 import cv2 as cv
 import random
 
+def display_image(window_name, img):
+    """
+        Displays image with given window name.
+        :param window_name: name of the window
+        :param img: image object to display
+    """
+    cv.imshow(window_name, img)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
 
 ##############################################
 #     Task 1        ##########################
 ##############################################
 
-
 def task_1_a():
     print("Task 1 (a) ...")
-    img = cv.imread('../images/shapes.png')
-    '''
-    ...
-    your code ...
-    ...
-    '''
 
+    # Read image in grayscale
+    img = cv.imread('../images/shapes.png', cv.IMREAD_GRAYSCALE)
+
+    # Perform gaussian blur
+    # followed by canny edge
+    # detector to find edges
+    edges = cv.Canny(cv.GaussianBlur(img.copy(), (0, 0), 1), 100, 200)
+    # display_image("Edges", edges)
+
+    # Perform hough transform
+    # on the computed edges
+    lines = cv.HoughLines(edges.copy(), 1, 1, 110, None, 0, 0)
+
+    # Create image copy
+    img_ht_cv = img.copy()
+
+    # Draw lines on the
+    # original image
+    if lines is not None:
+        for line in lines:
+            # Get line params
+            r = line[0][0]
+            theta = line[0][1]
+
+            # Trig values
+            a = np.cos(theta)
+            b = np.sin(theta)
+
+            # Compute x and y
+            x = r * a
+            y = r * b
+
+            # Create sample point
+            pt1 = (int(x + 1000*(-b)), int(y + 1000*(a)))
+            pt2 = (int(x - 1000*(-b)), int(y - 1000*(a)))
+
+            # Draw line
+            cv.line(img_ht_cv, pt1, pt2, (120,105,120), 3, 2)
+
+    display_image("Lines with OpenCV: ", img_ht_cv)
+
+    # Get lines using
+    # custom function
+    lines = myHoughLines(edges.copy(), 1, 1, 110)
+
+    # Create image copy
+    img_ht_custom = img.copy()
+
+    # Draw lines on the
+    # original image
+    if lines is not None:
+        for line in lines:
+            # Get line params
+            r = line[0][0]
+            theta = line[0][1]
+
+            # Trig values
+            a = np.cos(theta)
+            b = np.sin(theta)
+
+            # Compute x and y
+            x = r * a
+            y = r * b
+
+            # Create sample point
+            pt1 = (int(x + 1000*(-b)), int(y + 1000*(a)))
+            pt2 = (int(x - 1000*(-b)), int(y - 1000*(a)))
+
+            # Draw line
+            cv.line(img_ht_custom, pt1, pt2, (120,105,120), 3, 2)
+
+    display_image("Lines custom HT: ", img_ht_cv)
 
 def myHoughLines(img_edges, d_resolution, theta_step_sz, threshold):
     """
@@ -27,15 +101,38 @@ def myHoughLines(img_edges, d_resolution, theta_step_sz, threshold):
     :param threshold: minimum number of votes to consider a detection
     :return: list of detected lines as (d, theta) pairs and the accumulator
     """
-    accumulator = np.zeros((int(180 / theta_step_sz), int(np.linalg.norm(img_edges.shape) / d_resolution)))
-    detected_lines = []
-    '''
-    ...
-    your code ...
-    ...
-    '''
-    return detected_lines, accumulator
+    # Quantizations and resolutions
+    theta_q = int(180 / theta_step_sz)
+    d_resolution = int(np.linalg.norm(img_edges.shape) / d_resolution)
 
+    # Create our accumulator
+    accumulator = np.zeros((theta_q, d_resolution))
+
+    # Get indices where
+    # edge point occurs
+    indices = np.argwhere(img_edges == 255)
+
+    # Populate our accumulator
+    for tuple in indices:
+        # Unpack our tuple
+        # values y and x
+        y, x = tuple
+
+        # Compute for each theta
+        # resolution value
+        for theta in range(theta_q):
+            print(y, x, theta)
+            d = int(x * np.cos(theta) - y * np.sin(theta))
+            accumulator[theta, d] += 1
+
+    # Find votes that satisfy
+    # the threshold passed by
+    # the user
+    detected_lines = np.argwhere(accumulator >= threshold)
+
+    print("Detected lines: ", detected_lines)
+
+    return detected_lines, accumulator
 
 def task_1_b():
     print("Task 1 (b) ...")
@@ -162,4 +259,3 @@ if __name__ == "__main__":
     task_3_b()
     task_3_c()
     task_4_a()
-
