@@ -138,22 +138,35 @@ def task_1_b():
 ##############################################
 #     Task 2        ##########################
 ##############################################
+def euclid_distance(x, xi):
+    return np.sqrt(np.sum(np.power(x - xi, 2)))
 
+def kernel_density_estimation(distance, bandwidth):
+    c = 1 / (bandwidth * np.power(2 * np.pi, 0.5))
+    e = np.exp(-0.5 * np.power(distance / bandwidth, 2))
+    return c * e
+
+def mean_shift():
+    return None
 
 def task_2():
     print("Task 2 ...")
-    img = cv.imread('../images/line.png')
-    img_gray = None # convert the image into grayscale
-    edges = None # detect the edges
-    theta_res = None # set the resolution of theta
-    d_res = None # set the distance resolution
-    #_, accumulator = myHoughLines(edges, d_res, theta_res, 50)
-    '''
-    ...
-    your code ...
-    ...
-    '''
+    # Read image and convert it to grayscale
+    img = cv.imread('../images/line.png', cv.IMREAD_GRAYSCALE)
 
+    # Perform gaussian blur
+    # followed by canny edge
+    # detector to find edges
+    edges = cv.Canny(cv.GaussianBlur(img.copy(), (0, 0), 1), 100, 200)
+
+    # Resolutions (not for the new year though
+    d_res = 1
+    theta_res = 1
+    _, accumulator = myHoughLines(edges, d_res, theta_res, 110)
+
+    # Visualize accumulator
+    accumulator = ((accumulator - accumulator.min()) / accumulator.max()) * 255
+    display_image("Accumulator", accumulator.astype(np.uint8))
 
 ##############################################
 #     Task 3        ##########################
