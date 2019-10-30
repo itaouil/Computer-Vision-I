@@ -26,14 +26,10 @@ def task_1_a():
     # followed by canny edge
     # detector to find edges
     edges = cv.Canny(cv.GaussianBlur(img.copy(), (0, 0), 1), 100, 200)
-    # display_image("Edges", edges)
 
     # Perform hough transform
     # on the computed edges
-    lines = cv.HoughLines(edges.copy(), 1, 1, 110, None, 0, 0)
-
-    # Create image copy
-    img_ht_cv = img.copy()
+    lines = cv.HoughLines(edges, 1, 2, 110, None, 0, 0)
 
     # Draw lines on the
     # original image
@@ -56,41 +52,9 @@ def task_1_a():
             pt2 = (int(x - 1000*(-b)), int(y - 1000*(a)))
 
             # Draw line
-            cv.line(img_ht_cv, pt1, pt2, (120,105,120), 3, 2)
+            cv.line(img, pt1, pt2, (120,105,120), 3, 2)
 
-    display_image("Lines with OpenCV: ", img_ht_cv)
-
-    # Get lines using
-    # custom function
-    lines = myHoughLines(edges.copy(), 1, 1, 110)
-
-    # Create image copy
-    img_ht_custom = img.copy()
-
-    # Draw lines on the
-    # original image
-    if lines is not None:
-        for line in lines:
-            # Get line params
-            r = line[0][0]
-            theta = line[0][1]
-
-            # Trig values
-            a = np.cos(theta)
-            b = np.sin(theta)
-
-            # Compute x and y
-            x = r * a
-            y = r * b
-
-            # Create sample point
-            pt1 = (int(x + 1000*(-b)), int(y + 1000*(a)))
-            pt2 = (int(x - 1000*(-b)), int(y - 1000*(a)))
-
-            # Draw line
-            cv.line(img_ht_custom, pt1, pt2, (120,105,120), 3, 2)
-
-    display_image("Lines custom HT: ", img_ht_cv)
+    display_image("OpenCV Hough Transform", img)
 
 def myHoughLines(img_edges, d_resolution, theta_step_sz, threshold):
     """
@@ -121,31 +85,55 @@ def myHoughLines(img_edges, d_resolution, theta_step_sz, threshold):
         # Compute for each theta
         # resolution value
         for theta in range(theta_q):
-            print(y, x, theta)
             d = int(x * np.cos(theta) - y * np.sin(theta))
             accumulator[theta, d] += 1
 
     # Find votes that satisfy
     # the threshold passed by
     # the user
-    detected_lines = np.argwhere(accumulator >= threshold)
-
-    print("Detected lines: ", detected_lines)
+    detected_lines = np.argwhere(accumulator > threshold)
 
     return detected_lines, accumulator
 
 def task_1_b():
     print("Task 1 (b) ...")
-    img = cv.imread('../images/shapes.png')
-    img_gray = None # convert the image into grayscale
-    edges = None # detect the edges
-    #detected_lines, accumulator = myHoughLines(edges, 1, 2, 50)
-    '''
-    ...
-    your code ...
-    ...
-    '''
 
+    # Read image in grayscale
+    img = cv.imread('../images/shapes.png', cv.IMREAD_GRAYSCALE)
+
+    # Perform gaussian blur
+    # followed by canny edge
+    # detector to find edges
+    edges = cv.Canny(cv.GaussianBlur(img.copy(), (0, 0), 1), 100, 200)
+
+    # Perform hough transform
+    # on the computed edges
+    detected_lines, accumulator = myHoughLines(edges, 1, 2, 110)
+
+    # Draw lines on the
+    # original image
+    if detected_lines is not None:
+        for line in detected_lines:
+            # Get line params
+            r = line[1]
+            theta = line[0]
+
+            # Trig values
+            a = np.cos(theta)
+            b = np.sin(theta)
+
+            # Compute x and y
+            x = r * a
+            y = r * b
+
+            # Create sample point
+            pt1 = (int(x + 1000*(-b)), int(y + 1000*(a)))
+            pt2 = (int(x - 1000*(-b)), int(y - 1000*(a)))
+
+            # Draw line
+            cv.line(img, pt1, pt2, (120,105,120), 3, 2)
+
+    display_image("Custom Hough Transform", img)
 
 ##############################################
 #     Task 2        ##########################
