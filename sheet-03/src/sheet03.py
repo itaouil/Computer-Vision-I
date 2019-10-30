@@ -40,9 +40,9 @@ def myHoughLines(img_edges, d_resolution, theta_step_sz, threshold):
 def task_1_b():
     print("Task 1 (b) ...")
     img = cv.imread('../images/shapes.png')
-    img_gray = None # convert the image into grayscale
-    edges = None # detect the edges
-    #detected_lines, accumulator = myHoughLines(edges, 1, 2, 50)
+    img_gray = None  # convert the image into grayscale
+    edges = None  # detect the edges
+    # detected_lines, accumulator = myHoughLines(edges, 1, 2, 50)
     '''
     ...
     your code ...
@@ -58,11 +58,11 @@ def task_1_b():
 def task_2():
     print("Task 2 ...")
     img = cv.imread('../images/line.png')
-    img_gray = None # convert the image into grayscale
-    edges = None # detect the edges
-    theta_res = None # set the resolution of theta
-    d_res = None # set the distance resolution
-    #_, accumulator = myHoughLines(edges, d_res, theta_res, 50)
+    img_gray = None  # convert the image into grayscale
+    edges = None  # detect the edges
+    theta_res = None  # set the resolution of theta
+    d_res = None  # set the distance resolution
+    # _, accumulator = myHoughLines(edges, d_res, theta_res, 50)
     '''
     ...
     your code ...
@@ -142,13 +142,61 @@ def task_3_c():
 
 def task_4_a():
     print("Task 4 (a) ...")
-    D = None  # construct the D matrix
-    W = None  # construct the W matrix
-    '''
-    ...
-    your code ...
-    ...
-    '''
+    D = [
+        # A, B, C, D, E, F, G, H
+        [2.2, 0, 0, 0, 0, 0, 0, 0],  # A
+        [0, 2.1, 0, 0, 0, 0, 0, 0],  # B
+        [0, 0, 2.6, 0, 0, 0, 0, 0],  # C
+        [0, 0, 0, 3, 0, 0, 0, 0],  # D
+        [0, 0, 0, 0, 3, 0, 0, 0],  # E
+        [0, 0, 0, 0, 0, 3, 0, 0],  # F
+        [0, 0, 0, 0, 0, 0, 3.3, 0],  # G
+        [0, 0, 0, 0, 0, 0, 0, 2],  # H
+    ]
+    W = [
+        # A, B, C, D, E, F, G, H
+        [0, 1, .2, 1, 0, 0, 0, 0],  # A
+        [1, 0, .1, 0, 1, 0, 0, 0],  # B
+        [.2, .1, 0, 1, 0, 1, .3, 0],  # C
+        [1, 0, 1, 0, 0, 1, 0, 0],  # D
+        [0, 1, 0, 0, 0, 0, 1, 1],  # E
+        [0, 0, 1, 1, 0, 0, 1, 0],  # F
+        [0, 0, .3, 0, 1, 1, 0, 1],  # G
+        [0, 0, 0, 0, 1, 0, 1, 0],  # H
+    ]
+
+    W = np.array(W, dtype=np.float32)
+    D = np.array(D, dtype=np.float32)
+    retval, eigenvalues, eigenvectors = cv.eigen(W)
+    first_eigen = (98, 98)
+    sec_eigen = (99, 99)
+    # Laplacian matrix
+    L = D - W
+
+    # get the second smallest eigenvalue
+    for idx, val in enumerate(eigenvalues):
+        y = eigenvectors[idx, :]
+        # calculate the minNcut
+        cut = np.dot(np.dot(y.T, L), y) / np.dot(np.dot(y.T, D), y)
+        # store the first eigenvalue
+        first_eigen = (idx, cut) if cut < first_eigen[1] else first_eigen
+        # store the second eigenvalue
+        sec_eigen = (idx, cut) if first_eigen[1] < cut < sec_eigen[1] else sec_eigen
+
+    # ascii code of the letter A
+    ascii = 65
+    cluster1 = []
+    cluster2 = []
+    # retrieve the second smallest eigenvector
+    min_cut = eigenvectors[sec_eigen[0]]
+    for val in min_cut:
+        if val < 0:
+            cluster1.append(chr(ascii))
+        else:
+            cluster2.append(chr(ascii))
+        ascii += 1
+    print('C1: {}\nC2: {}'.format(cluster1, cluster2))
+    print('The cost of the normalized cut is O(n), where n is the number of the eigenvalues.')
 
 
 ##############################################
@@ -156,11 +204,10 @@ def task_4_a():
 ##############################################
 
 if __name__ == "__main__":
-    task_1_a()
-    task_1_b()
-    task_2()
-    task_3_a()
-    task_3_b()
-    task_3_c()
+    # task_1_a()
+    # task_1_b()
+    # task_2()
+    # task_3_a()
+    # task_3_b()
+    # task_3_c()
     task_4_a()
-
