@@ -204,10 +204,10 @@ def task_4_a():
 ##############################################
 
 if __name__ == "__main__":
-    # task_1_a()
-    # task_1_b()
-    # task_2()
-    # task_3_a()
-    # task_3_b()
-    # task_3_c()
+    task_1_a()
+    task_1_b()
+    task_2()
+    task_3_a()
+    task_3_b()
+    task_3_c()
     task_4_a()
