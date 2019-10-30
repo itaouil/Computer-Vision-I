@@ -143,11 +143,73 @@ def euclid_distance(x, xi):
 
 def kernel_density_estimation(distance, bandwidth):
     c = 1 / (bandwidth * np.power(2 * np.pi, 0.5))
-    e = np.exp(-0.5 * np.power(distance / bandwidth, 2))
+    e = np.exp(-0.5 * (np.power(distance, 2) / bandwidth))
     return c * e
 
-def mean_shift():
-    return None
+def get_neighbours(points, x, neighbouring_distance = 5):
+    # Neighouring points
+    neighbouring_points = []
+
+    # Find points which are
+    # within the neighouring
+    # distance
+    for point in points:
+        if euclid_distance(x, point) <= neighbouring_distance:
+            neighbouring_points.append(point)
+
+    return neighbouring_points
+
+def mean_shift(data):
+    # Make copy of data
+    points = data.copy()
+
+    # Old points
+    old_points = points
+
+    # Convergence flag
+    converged = False
+
+    while not converged:
+        # Iterate over points
+        for i, point in enumerate(points):
+            # Get neighouring points
+            # based on a distance metric
+            neighbours = get_neighbours(points, point, 50)
+
+            # Numerator and denominator
+            # of the weighted sum
+            numerator, denominator = 0, 0
+
+            # Iterate over neighbours
+            for n in neighbours:
+                # Compute euclidean distance
+                # between n and the actual point
+                distance = euclid_distance(point, n)
+
+                # Compute density, which
+                # is nothing more than just
+                # a weight
+                weight = kernel_density_estimation(distance, 5)
+
+                # Get numerator and denominator
+                # of our new m(x)
+                numerator += (n * weight)
+                denominator += weight
+
+            # Compute new point m
+            m = numerator / denominator
+
+            # Replace points
+            points[i] = m
+
+            # Check for convergence
+            converged = np.array_equal(points, old_points)
+            print("Converged: ", converged)
+
+            # Update old points
+            old_points = points
+
+    return points
 
 def task_2():
     print("Task 2 ...")
@@ -163,6 +225,40 @@ def task_2():
     d_res = 1
     theta_res = 1
     _, accumulator = myHoughLines(edges, d_res, theta_res, 110)
+
+    # Get clusters of accumulator
+    print("Size: ", len(np.argwhere(accumulator > 10)))
+    clusters = np.unique(mean_shift(np.argwhere(accumulator > 10)), axis=0)
+
+    # Draw lines on the
+    # original image
+    if clusters is not None:
+        for cluster in clusters:
+            # Get accumulator point
+            print("Cluster: ", cluster)
+            y,x = cluster
+
+            # Get line params
+            r = x
+            theta = y
+
+            # Trig values
+            a = np.cos(theta)
+            b = np.sin(theta)
+
+            # Compute x and y
+            x = r * a
+            y = r * b
+
+            # Create sample point
+            pt1 = (int(x + 1000*(-b)), int(y + 1000*(a)))
+            pt2 = (int(x - 1000*(-b)), int(y - 1000*(a)))
+
+            # Draw line
+            cv.line(img, pt1, pt2, (120,105,120), 3, 2)
+
+    # Visualize mean shift
+    display_image("Lines with mean shift", img)
 
     # Visualize accumulator
     accumulator = ((accumulator - accumulator.min()) / accumulator.max()) * 255
@@ -253,10 +349,10 @@ def task_4_a():
 ##############################################
 
 if __name__ == "__main__":
-    task_1_a()
-    task_1_b()
+    # task_1_a()
+    # task_1_b()
     task_2()
-    task_3_a()
-    task_3_b()
-    task_3_c()
-    task_4_a()
+    # task_3_a()
+    # task_3_b()
+    # task_3_c()
+    # task_4_a()
