@@ -3,6 +3,17 @@ import cv2 as cv
 import random
 
 
+def display_image(window_name, img):
+    """
+        Displays image with given window name.
+        :param window_name: name of the window
+        :param img: image object to display
+    """
+    cv.imshow(window_name, img)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+
+
 ##############################################
 #     Task 1        ##########################
 ##############################################
@@ -75,43 +86,86 @@ def task_2():
 ##############################################
 
 
-def myKmeans(data, k):
+def create_histogram(image):
     """
-    Your implementation of k-means algorithm
-    :param data: list of data points to cluster
+    Create the intensity histogram of the image.
+    :param image: the image
+    :return: the histogram
+    """
+    histo = np.zeros((1, 256), dtype=np.int32)
+    for y in range(image.shape[0]):
+        for x in range(image.shape[1]):
+            histo[[0], image[y, x]] += 1
+    return histo
+
+
+def my_k_means(histogram, k):
+    """
+    My implementation of k-means algorithm.
+    :param histogram: histogram
     :param k: number of clusters
-    :return: centers and list of indices that store the cluster index for each data point
+    :return: centers and ndarray of clusters.
     """
-    centers = np.zeros((k, data.shape[1]))
-    index = np.zeros(data.shape[0], dtype=int)
-    clusters = [[] for i in range(k)]
+    clusters = [[] for _ in range(k)]
 
-    # initialize centers using some random points from data
-    # ....
-
+    # initialize centers using some random points from histogram
+    centers = [random.randint(0, 256) for _ in range(k)]
+    print(centers)
     convergence = False
-    iterationNo = 0
+    iteration_no = 0
     while not convergence:
         # assign each point to the cluster of closest center
-        # ...
+        for coord_img in range(histogram.shape[0]):
+            # index and distance from the closest center
+            idx_n_dist = (0, 256)
+            for idx_center, coord_center in enumerate(centers):
+                dist = abs(coord_img - coord_center)
+                if dist < idx_n_dist[1]:
+                    idx_n_dist = (idx_center, dist)
+            idx_center = idx_n_dist[0]
+            clusters[idx_center].append(coord_img)
 
         # update clusters' centers and check for convergence
-        # ...
+        centers_new = []
+        for clust in clusters:
+            val_w_summ = 0
+            w_sum = 1
+            for coord_clust in clust:
+                val_w_summ += coord_clust * histogram[coord_clust]
+                w_sum += histogram[coord_clust]
+            mean = val_w_summ / w_sum
+            centers_new.append(int(mean))
+        iteration_no += 1
+        print('iteration_no = ', iteration_no)
 
-        iterationNo += 1
-        print('iterationNo = ', iterationNo)
+        center_diff = (np.array(centers_new) - np.array(centers)).astype(np.int32)
+        if np.where(center_diff == 0)[0].size == k:
+            convergence = True
+        else:
+            clusters = [[] for _ in range(k)]
+        centers = centers_new
+    return centers, clusters
 
-    return index, centers
+
+
+def paint_clusters(image, centers, clusters):
+    for idx, clust in enumerate(clusters):
+        for val in clust:
+            np.place(image, image == val, centers[idx])
+    return image
 
 
 def task_3_a():
     print("Task 3 (a) ...")
-    img = cv.imread('../images/flower.png')
-    '''
-    ...
-    your code ...
-    ...
-    '''
+
+    img_gray = cv.imread('./images/traffic.jpg', 0)
+    # histo = create_histogram(img_gray)
+    histo, _ = np.histogram(img_gray, bins=256)
+    print(histo.shape)
+    print(histo)
+    centers, clusters = my_k_means(histo, 2)
+    img_clusters = paint_clusters(img_gray, centers, clusters)
+    display_image('K-mean image', img_clusters)
 
 
 def task_3_b():
@@ -207,7 +261,7 @@ if __name__ == "__main__":
     # task_1_a()
     # task_1_b()
     # task_2()
-    # task_3_a()
+    task_3_a()
     # task_3_b()
     # task_3_c()
-    task_4_a()
+    # task_4_a()
