@@ -2,21 +2,59 @@ import numpy as np
 import cv2 as cv
 import random
 
+def display_image(window_name, img):
+    """
+        Displays image with given window name.
+        :param window_name: name of the window
+        :param img: image object to display
+    """
+    cv.imshow(window_name, img)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
 
 ##############################################
 #     Task 1        ##########################
 ##############################################
 
-
 def task_1_a():
     print("Task 1 (a) ...")
-    img = cv.imread('../images/shapes.png')
-    '''
-    ...
-    your code ...
-    ...
-    '''
 
+    # Read image in grayscale
+    img = cv.imread('../images/shapes.png', cv.IMREAD_GRAYSCALE)
+
+    # Perform gaussian blur
+    # followed by canny edge
+    # detector to find edges
+    edges = cv.Canny(cv.GaussianBlur(img.copy(), (0, 0), 1), 100, 200)
+
+    # Perform hough transform
+    # on the computed edges
+    lines = cv.HoughLines(edges, 1, 2, 110, None, 0, 0)
+
+    # Draw lines on the
+    # original image
+    if lines is not None:
+        for line in lines:
+            # Get line params
+            r = line[0][0]
+            theta = line[0][1]
+
+            # Trig values
+            a = np.cos(theta)
+            b = np.sin(theta)
+
+            # Compute x and y
+            x = r * a
+            y = r * b
+
+            # Create sample point
+            pt1 = (int(x + 1000*(-b)), int(y + 1000*(a)))
+            pt2 = (int(x - 1000*(-b)), int(y - 1000*(a)))
+
+            # Draw line
+            cv.line(img, pt1, pt2, (120,105,120), 3, 2)
+
+    display_image("OpenCV Hough Transform", img)
 
 def myHoughLines(img_edges, d_resolution, theta_step_sz, threshold):
     """
@@ -27,48 +65,205 @@ def myHoughLines(img_edges, d_resolution, theta_step_sz, threshold):
     :param threshold: minimum number of votes to consider a detection
     :return: list of detected lines as (d, theta) pairs and the accumulator
     """
-    accumulator = np.zeros((int(180 / theta_step_sz), int(np.linalg.norm(img_edges.shape) / d_resolution)))
-    detected_lines = []
-    '''
-    ...
-    your code ...
-    ...
-    '''
-    return detected_lines, accumulator
+    # Quantizations and resolutions
+    theta_q = int(180 / theta_step_sz)
+    d_resolution = int(np.linalg.norm(img_edges.shape) / d_resolution)
 
+    # Create our accumulator
+    accumulator = np.zeros((theta_q, d_resolution))
+
+    # Get indices where
+    # edge point occurs
+    indices = np.argwhere(img_edges == 255)
+
+    # Populate our accumulator
+    for tuple in indices:
+        # Unpack our tuple
+        # values y and x
+        y, x = tuple
+
+        # Compute for each theta
+        # resolution value
+        for theta in range(theta_q):
+            d = int(x * np.cos(theta) - y * np.sin(theta))
+            accumulator[theta, d] += 1
+
+    # Find votes that satisfy
+    # the threshold passed by
+    # the user
+    detected_lines = np.argwhere(accumulator > threshold)
+
+    return detected_lines, accumulator
 
 def task_1_b():
     print("Task 1 (b) ...")
-    img = cv.imread('../images/shapes.png')
-    img_gray = None  # convert the image into grayscale
-    edges = None  # detect the edges
-    # detected_lines, accumulator = myHoughLines(edges, 1, 2, 50)
-    '''
-    ...
-    your code ...
-    ...
-    '''
 
+    # Read image in grayscale
+    img = cv.imread('../images/shapes.png', cv.IMREAD_GRAYSCALE)
+
+    # Perform gaussian blur
+    # followed by canny edge
+    # detector to find edges
+    edges = cv.Canny(cv.GaussianBlur(img.copy(), (0, 0), 1), 100, 200)
+
+    # Perform hough transform
+    # on the computed edges
+    detected_lines, accumulator = myHoughLines(edges, 1, 2, 110)
+
+    # Draw lines on the
+    # original image
+    if detected_lines is not None:
+        for line in detected_lines:
+            # Get line params
+            r = line[1]
+            theta = line[0]
+
+            # Trig values
+            a = np.cos(theta)
+            b = np.sin(theta)
+
+            # Compute x and y
+            x = r * a
+            y = r * b
+
+            # Create sample point
+            pt1 = (int(x + 1000*(-b)), int(y + 1000*(a)))
+            pt2 = (int(x - 1000*(-b)), int(y - 1000*(a)))
+
+            # Draw line
+            cv.line(img, pt1, pt2, (120,105,120), 3, 2)
+
+    display_image("Custom Hough Transform", img)
 
 ##############################################
 #     Task 2        ##########################
 ##############################################
+def euclid_distance(x, xi):
+    return np.sqrt(np.sum(np.power(x - xi, 2)))
 
+def kernel_density_estimation(distance, bandwidth):
+    c = 1 / (bandwidth * np.power(2 * np.pi, 0.5))
+    e = np.exp(-0.5 * (np.power(distance, 2) / bandwidth))
+    return c * e
+
+def get_neighbours(points, x, neighbouring_distance = 5):
+    # Neighouring points
+    neighbouring_points = []
+
+    # Find points which are
+    # within the neighouring
+    # distance
+    for point in points:
+        if euclid_distance(x, point) <= neighbouring_distance:
+            neighbouring_points.append(point)
+
+    return neighbouring_points
+
+def mean_shift(data):
+    # Make copy of data
+    points = data.copy()
+
+    # Old points
+    old_points = points
+
+    # Convergence flag
+    converged = False
+
+    while not converged:
+        # Iterate over points
+        for i, point in enumerate(points):
+            # Get neighouring points
+            # based on a distance metric
+            neighbours = get_neighbours(points, point, 6)
+
+            # Numerator and denominator
+            # of the weighted sum
+            numerator, denominator = 0, 0
+
+            # Iterate over neighbours
+            for n in neighbours:
+                # Compute euclidean distance
+                # between n and the actual point
+                distance = euclid_distance(point, n)
+
+                # Compute density, which
+                # is nothing more than just
+                # a weight
+                weight = kernel_density_estimation(distance, 4)
+
+                # Get numerator and denominator
+                # of our new m(x)
+                numerator += (n * weight)
+                denominator += weight
+
+            # Compute new point m
+            m = numerator / denominator
+
+            # Replace points
+            points[i] = m
+            print("Point: ", m, point)
+
+            # Check for convergence
+            converged = np.array_equal(points, old_points)
+            print("Converged: ", converged)
+
+            # Update old points
+            old_points = points
+
+    return points
 
 def task_2():
     print("Task 2 ...")
-    img = cv.imread('../images/line.png')
-    img_gray = None  # convert the image into grayscale
-    edges = None  # detect the edges
-    theta_res = None  # set the resolution of theta
-    d_res = None  # set the distance resolution
-    # _, accumulator = myHoughLines(edges, d_res, theta_res, 50)
-    '''
-    ...
-    your code ...
-    ...
-    '''
+    # Read image and convert it to grayscale
+    img = cv.imread('../images/line.png', cv.IMREAD_GRAYSCALE)
 
+    # Perform gaussian blur
+    # followed by canny edge
+    # detector to find edges
+    edges = cv.Canny(cv.GaussianBlur(img.copy(), (0, 0), 1), 100, 200)
+
+    # Resolutions (not for the new year though
+    d_res = 1
+    theta_res = 1
+    _, accumulator = myHoughLines(edges, d_res, theta_res, 110)
+
+    # Get clusters of accumulator
+    print("Size: ", len(np.argwhere(accumulator > 10)))
+    clusters = np.unique(mean_shift(np.argwhere(accumulator > 10)), axis=0)
+
+    # Draw lines on the
+    # original image
+    if clusters is not None:
+        for cluster in clusters:
+            # Get accumulator point
+            print("Cluster: ", cluster)
+            y,x = cluster
+
+            # Get line params
+            r = x
+            theta = y
+
+            # Trig values
+            a = np.cos(theta)
+            b = np.sin(theta)
+
+            # Compute x and y
+            x = r * a
+            y = r * b
+
+            # Create sample point
+            pt1 = (int(x + 1000*(-b)), int(y + 1000*(a)))
+            pt2 = (int(x - 1000*(-b)), int(y - 1000*(a)))
+
+            # Draw line
+            cv.line(img, pt1, pt2, (120,105,120), 3, 2)
+
+    # Visualize mean shift
+    display_image("Lines with mean shift", img)
+
+    # Visualize accumulator
+    accumulator = ((accumulator - accumulator.min()) / accumulator.max()) * 255
+    display_image("Accumulator", accumulator.astype(np.uint8))
 
 ##############################################
 #     Task 3        ##########################
@@ -128,7 +323,7 @@ def task_3_c():
     print("Task 3 (c) ...")
     img = cv.imread('../images/flower.png')
     '''
-    
+
     ...
     your code ...
     ...
