@@ -99,53 +99,102 @@ def create_histogram(image):
     return histo
 
 
-def my_k_means(histogram, k):
+def euclidean_distances(a, b):
+    dist = (a - b) ** 2
+    ret = np.sum(dist) ** 0.5
+    return ret
+
+
+def my_k_means(image, k):
     """
     My implementation of k-means algorithm.
     :param histogram: histogram
     :param k: number of clusters
     :return: centers and ndarray of clusters.
     """
+    shape = image.shape
+    data = get_features_image(image)
     clusters = [[] for _ in range(k)]
 
     # initialize centers using some random points from histogram
-    centers = [random.randint(0, 256) for _ in range(k)]
-    print(centers)
+    centers = np.zeros((data.shape[0], k))
+    for i in range(centers.shape[1]):
+        centers[0, i] = random.randint(0, shape[0])  # Y
+        centers[1, i] = random.randint(0, shape[1])  # X
+        if len(shape) == 2:
+            centers[2, i] = random.randint(0, 255)  # I
+        else:
+            centers[2, i] = random.randint(0, 255)  # R
+            centers[3, i] = random.randint(0, 255)  # G
+            centers[4, i] = random.randint(0, 255)  # B
+
     convergence = False
     iteration_no = 0
     while not convergence:
         # assign each point to the cluster of closest center
-        for coord_img in range(histogram.shape[0]):
+        for idx_features_pixel in range(data.shape[1]):
+            featu_pxl = data[:, idx_features_pixel]
             # index and distance from the closest center
-            idx_n_dist = (0, 256)
-            for idx_center, coord_center in enumerate(centers):
-                dist = abs(coord_img - coord_center)
+            idx_n_dist = (0, 10000000)
+            for idx_features_center in range(centers.shape[1]):
+                featu_ctr = centers[:, idx_features_center]
+                dist = euclidean_distances(featu_pxl, featu_ctr)
                 if dist < idx_n_dist[1]:
-                    idx_n_dist = (idx_center, dist)
+                    idx_n_dist = (idx_features_center, dist)
+
             idx_center = idx_n_dist[0]
-            clusters[idx_center].append(coord_img)
+            clusters[idx_center].append(featu_pxl)
 
         # update clusters' centers and check for convergence
         centers_new = []
         for clust in clusters:
-            val_w_summ = 0
-            w_sum = 1
+            final_coord = clust[0]
             for coord_clust in clust:
-                val_w_summ += coord_clust * histogram[coord_clust]
-                w_sum += histogram[coord_clust]
-            mean = val_w_summ / w_sum
-            centers_new.append(int(mean))
+                final_coord += coord_clust
+            print(final_coord)
+            final_coord /= len(clust)
+            print(final_coord)
+            centers_new.append(final_coord)
+        centers_new = np.array(centers_new).T
+
+        print(centers_new)
+        print(clusters[0][:5])
+        print(clusters[1][:5])
         iteration_no += 1
         print('iteration_no = ', iteration_no)
 
-        center_diff = (np.array(centers_new) - np.array(centers)).astype(np.int32)
-        if np.where(center_diff == 0)[0].size == k:
+        center_diff = (centers_new - centers)
+        diff = np.where(center_diff < 1)
+        if diff[0].size >= k * 3:
             convergence = True
         else:
             clusters = [[] for _ in range(k)]
         centers = centers_new
-    return centers, clusters
+    return centers.astype(np.int32), clusters
 
+
+def get_features_image(image):
+    shape = image.shape
+    if len(shape) == 2:
+        # gray scale
+        n_features = 3
+    else:
+        # differen color
+        n_features = shape[2] + 2
+    data = np.zeros((n_features, shape[0] * shape[1]))
+    i = 0
+    for y in range(image.shape[0]):
+        for x in range(image.shape[1]):
+            features = [x, y]
+            if n_features > 3:
+                features.extend(image[y, x].tolist())
+            else:
+                features.append(image[y, x])
+            features = np.array(features)
+            data[:, i] = features
+            i += 1
+
+    return data
 
 
 def paint_clusters(image, centers, clusters):
@@ -155,16 +204,23 @@ def paint_clusters(image, centers, clusters):
     return image
 
 
+def paint_clusters_data(image, centers, clusters):
+    print(centers)
+    for idx, clust in enumerate(clusters):
+        for val in clust:
+            val = val.astype(np.int8)
+            y, x = val[0], val[1]
+            image[y, x] = centers[2, idx]
+    return image
+
+
 def task_3_a():
     print("Task 3 (a) ...")
 
-    img_gray = cv.imread('./images/traffic.jpg', 0)
+    img_gray = cv.imread('./images/flower.png', 0)
     # histo = create_histogram(img_gray)
-    histo, _ = np.histogram(img_gray, bins=256)
-    print(histo.shape)
-    print(histo)
-    centers, clusters = my_k_means(histo, 2)
-    img_clusters = paint_clusters(img_gray, centers, clusters)
+    centers, clusters = my_k_means(img_gray, 2)
+    img_clusters = paint_clusters_data(img_gray, centers, clusters)
     display_image('K-mean image', img_clusters)
 
 
