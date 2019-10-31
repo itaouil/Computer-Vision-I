@@ -174,7 +174,7 @@ def mean_shift(data):
         for i, point in enumerate(points):
             # Get neighouring points
             # based on a distance metric
-            neighbours = get_neighbours(points, point, 50)
+            neighbours = get_neighbours(points, point, 6)
 
             # Numerator and denominator
             # of the weighted sum
@@ -189,7 +189,7 @@ def mean_shift(data):
                 # Compute density, which
                 # is nothing more than just
                 # a weight
-                weight = kernel_density_estimation(distance, 5)
+                weight = kernel_density_estimation(distance, 4)
 
                 # Get numerator and denominator
                 # of our new m(x)
@@ -201,6 +201,7 @@ def mean_shift(data):
 
             # Replace points
             points[i] = m
+            print("Point: ", m, point)
 
             # Check for convergence
             converged = np.array_equal(points, old_points)
@@ -349,8 +350,8 @@ def task_4_a():
 ##############################################
 
 if __name__ == "__main__":
-    # task_1_a()
-    # task_1_b()
+    task_1_a()
+    task_1_b()
     task_2()
     # task_3_a()
     # task_3_b()
