@@ -14,28 +14,6 @@ def display_image(window_name, img):
     cv.destroyAllWindows()
 
 
-def display_image(window_name, img):
-    """
-        Displays image with given window name.
-        :param window_name: name of the window
-        :param img: image object to display
-    """
-    cv.imshow(window_name, img)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
-
-
-def display_image(window_name, img):
-    """
-        Displays image with given window name.
-        :param window_name: name of the window
-        :param img: image object to display
-    """
-    cv.imshow(window_name, img)
-    cv.waitKey(0)
-    cv.destroyAllWindows()
-
-
 ##############################################
 #     Task 1        ##########################
 ##############################################
@@ -231,11 +209,9 @@ def mean_shift(data):
 
             # Replace points
             points[i] = m
-            print("Point: ", m, point)
 
             # Check for convergence
             converged = np.array_equal(points, old_points)
-            print("Converged: ", converged)
 
             # Update old points
             old_points = points
@@ -267,7 +243,6 @@ def task_2():
     if clusters is not None:
         for cluster in clusters:
             # Get accumulator point
-            print("Cluster: ", cluster)
             y, x = cluster
 
             # Get line params
@@ -480,11 +455,10 @@ def my_kmeans_position(image, k):
         if center_found == k:
             convergence = True
 
-        # convert the image to the center colors
-        for y in range(final_img.shape[0]):
-            for x in range(final_img.shape[1]):
-                final_img[y, x] = centers[final_img[y, x]]
-
+    # convert the image to the center colors
+    for y in range(final_img.shape[0]):
+        for x in range(final_img.shape[1]):
+            final_img[y, x] = centers[final_img[y, x]][0]
     return final_img, centers
 
 
@@ -596,10 +570,10 @@ def task_4_ab():
 ##############################################
 
 if __name__ == "__main__":
-    # task_1_a()
-    # task_1_b()
-    # task_2()
-    # task_3_a()
-    # task_3_b()
+    task_1_a()
+    task_1_b()
+    task_2()
+    task_3_a()
+    task_3_b()
     task_3_c()
     task_4_ab()
