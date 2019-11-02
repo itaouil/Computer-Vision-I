@@ -367,7 +367,8 @@ def my_kmeans_gray(image, k):
 
 def my_kmeans_color(image, k):
     centers = [[random.randint(0, 255) for _ in range(3)] for _ in range(k)]
-    final_img = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+    final_img = image.copy()
+    cluster_img = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
     clusters = [[] for _ in range(k)]
 
     convergence = False
@@ -386,7 +387,7 @@ def my_kmeans_color(image, k):
                         idx_cluster = idx
 
                 clusters[idx_cluster].append(image[y, x])
-                final_img[y, x] = idx_cluster
+                cluster_img[y, x] = idx_cluster
 
         # update clusters' centers and check for convergence
         restart = False
@@ -415,9 +416,9 @@ def my_kmeans_color(image, k):
             convergence = True
 
     # convert the image to the center colors
-    for y, row in enumerate(final_img):
-        for x, p in enumerate(row):
-            final_img[y, x] = centers[p]
+    for y in range(cluster_img.shape[0]):
+        for x in range(cluster_img.shape[1]):
+            final_img[y, x] = centers[cluster_img[y, x]]
 
     return final_img, centers
 
@@ -444,12 +445,12 @@ def my_kmeans_position(image, k):
                 idx_cluster = -1
 
                 for idx, center in enumerate(centers):
-                    dist = get_distance(image[y, x], center)
+                    dist = get_distance(data[y, x], center)
                     if dist < min_dist:
                         min_dist = dist
                         idx_cluster = idx
 
-                clusters[idx_cluster].append(image[y, x])
+                clusters[idx_cluster].append(data[y, x])
                 final_img[y, x] = idx_cluster
 
         # update clusters' centers and check for convergence
@@ -479,10 +480,10 @@ def my_kmeans_position(image, k):
         if center_found == k:
             convergence = True
 
-    # convert the image to the center colors
-    for y, row in enumerate(final_img):
-        for x, p in enumerate(row):
-            final_img[y, x] = centers[p]
+        # convert the image to the center colors
+        for y in range(final_img.shape[0]):
+            for x in range(final_img.shape[1]):
+                final_img[y, x] = centers[final_img[y, x]]
 
     return final_img, centers
 
@@ -490,7 +491,7 @@ def my_kmeans_position(image, k):
 def task_3_a():
     cluster_n = [2, 4, 6]
     print("Task 3 (a) ...")
-    img = cv.imread('./images/flower.png', 0)
+    img = cv.imread('../images/flower.png', 0)
 
     for k in cluster_n:
         clustered_image, centers = my_kmeans_gray(img, k)
@@ -501,7 +502,7 @@ def task_3_a():
 def task_3_b():
     cluster_n = [2, 4, 6]
     print("Task 3 (b) ...")
-    img = cv.imread('./images/flower.png')
+    img = cv.imread('../images/flower.png')
 
     for k in cluster_n:
         clustered_image, centers = my_kmeans_color(img, k)
@@ -512,7 +513,7 @@ def task_3_b():
 def task_3_c():
     cluster_n = [2, 4, 6]
     print("Task 3 (c) ...")
-    img = cv.imread('./images/flower.png', 0)
+    img = cv.imread('../images/flower.png', 0)
 
     for k in cluster_n:
         clustered_image, centers = my_kmeans_position(img, k)
@@ -595,10 +596,10 @@ def task_4_ab():
 ##############################################
 
 if __name__ == "__main__":
-    task_1_a()
-    task_1_b()
-    task_2()
-    task_3_a()
-    task_3_b()
+    # task_1_a()
+    # task_1_b()
+    # task_2()
+    # task_3_a()
+    # task_3_b()
     task_3_c()
     task_4_ab()
