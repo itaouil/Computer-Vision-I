@@ -1,9 +1,10 @@
-Implement your solution in the file sheet03.py in the src directory.
-The necessary python modules files are already imported.
-Your program should run from the terminal with the following command:
+# Exercise 3
 
-python sheet03.py
+## Students
+Name:       Ilyass Taouil
+Email:      s6iltaou@uni-bonn.de
+Student ID: s6iltaou
 
-Please provide any other information required to run your program here...
-
-Your group members: ...
+Name:       Alessandro Riccardi
+Email:      s6alricc@unni-bonn.de
+Student ID: s6alricc
