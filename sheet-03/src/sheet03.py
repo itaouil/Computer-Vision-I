@@ -301,70 +301,8 @@ def task_2():
 #     Task 3        ##########################
 ##############################################
 
-def my_kmeans_intensity(img, k):
-    centers = [random.randint(0, 255) for _ in range(k)]
-    clustered_image = img.copy()
-    clusters = [[] for _ in range(k)]
 
-    convergence = False
-    iteration_num = 0
-    while not convergence:
-        iteration_num += 1
-        print('iteration num = ', iteration_num)
-
-        # assign each point to the cluster of closest center
-        for y, row in enumerate(img):
-            for x, p in enumerate(row):
-                min_distance = 256
-                cluster_num = -1
-
-                for i, c in enumerate(centers):
-                    distance_for_this_center = abs(p - c)
-                    if distance_for_this_center < min_distance:
-                        min_distance = distance_for_this_center
-                        cluster_num = i
-
-                clusters[cluster_num].append(p)  # add intensity value to the list of values in the cluster
-                clustered_image[y, x] = cluster_num  # cluster number -> temporary value in the clustered image
-
-        # update clusters' centers and check for convergence
-        start_anew = False
-        num_converged_centers = 0
-        for i, c in enumerate(centers):
-            # if some cluster ended up having no elements
-            if len(clusters[i]) == 0:
-                # that means random initialization was bad
-                # initialize new random centers and iterate again
-                centers = [random.randint(0, 255) for _ in range(k)]
-                iteration_num = 0
-                print('1 cluster had 0 elements due to bad random initialization of the centers. Starting anew')
-                start_anew = True
-            # else if all clusters have at least 1 pixel
-            else:
-                c_new = sum(v for v in clusters[i]) / len(clusters[i])
-                if abs(c - c_new) < 1:
-                    num_converged_centers += 1
-                centers[i] = c_new
-        if start_anew:
-            continue
-
-        iteration_num += 1
-        print('iteration num = ', iteration_num)
-
-        if num_converged_centers == k:
-            convergence = True
-            print('converged')
-
-    # after it converged
-    # turn cluster numbers into final central values in the output image
-    for y, row in enumerate(clustered_image):
-        for x, p in enumerate(row):
-            clustered_image[y, x] = centers[p]
-
-    return clustered_image, centers
-
-
-def euclidian_distance(a, b):
+def get_distance(a, b):
     assert len(a) == len(b)
     sum_sq = 0
     for i in range(len(a)):
@@ -372,169 +310,214 @@ def euclidian_distance(a, b):
     return sum_sq ** 0.5
 
 
-def my_kmeans_rgb(img, k):
+def my_kmeans_gray(image, k):
+    final_img = image.copy()
+    centers = [random.randint(0, 255) for _ in range(k)]
+    clusters = [[] for _ in range(k)]
+
+    convergence = False
+    iteration_num = 0
+    while not convergence:
+        iteration_num += 1
+        print('iteration num = ', iteration_num)
+
+        # assign each point to the cluster of closest center
+        for y in range(image.shape[0]):
+            for x in range(image.shape[1]):
+                min_distance = 256
+                idx_cluster = -1
+
+                for idx, center in enumerate(centers):
+                    dist = abs(image[y, x] - center)
+                    if dist < min_distance:
+                        min_distance = dist
+                        idx_cluster = idx
+
+                clusters[idx_cluster].append(image[y, x])
+                final_img[y, x] = idx_cluster
+
+        # update clusters' centers and check for convergence
+        restart = False
+        center_found = 0
+        for idx, center in enumerate(centers):
+            if len(clusters[idx]) == 0:
+                # Some cluster doesn't have elements
+                restart = True
+                print('Restarting again: one cluster has no values')
+                centers = [random.randint(0, 255) for _ in range(k)]
+                iteration_num = 0
+            else:
+                new_center = sum(v for v in clusters[idx]) / len(clusters[idx])
+                if abs(new_center - center) < 1:
+                    center_found += 1
+                centers[idx] = new_center
+        if restart:
+            continue
+
+        if center_found == k:
+            convergence = True
+
+    # convert the image to the center colors
+    for y in range(final_img.shape[0]):
+        for x in range(final_img.shape[1]):
+            final_img[y, x] = centers[final_img[y, x]]
+
+    return final_img, centers
+
+
+def my_kmeans_color(image, k):
     centers = [[random.randint(0, 255) for _ in range(3)] for _ in range(k)]
-    pixel_to_cluster = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-    clustered_image = img.copy()
+    final_img = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
     clusters = [[] for _ in range(k)]
 
     convergence = False
     iteration_num = 0
     while not convergence:
         # assign each point to the cluster of closest center
-        for y, row in enumerate(img):
-            for x, p in enumerate(row):
-                min_distance = 256
-                cluster_num = -1
+        for y in range(image.shape[0]):
+            for x in range(image.shape[1]):
+                min_dist = 256
+                idx_cluster = -1
 
-                for i, c in enumerate(centers):
-                    distance_for_this_center = euclidian_distance(p, c)
-                    if distance_for_this_center < min_distance:
-                        min_distance = distance_for_this_center
-                        cluster_num = i
+                for idx, center in enumerate(centers):
+                    dist = get_distance(image[y, x], center)
+                    if dist < min_dist:
+                        min_dist = dist
+                        idx_cluster = idx
 
-                clusters[cluster_num].append(p)  # add color value to the list of values in the cluster
-                pixel_to_cluster[y, x] = cluster_num  # cluster number -> temporary value in the clustered image
+                clusters[idx_cluster].append(image[y, x])
+                final_img[y, x] = idx_cluster
 
         # update clusters' centers and check for convergence
-        start_anew = False
-        num_converged_centers = 0
-        for i, c in enumerate(centers):
-            # if some cluster ended up having no elements
-            if len(clusters[i]) == 0:
-                # that means random initialization was bad
-                # initialize new random centers and iterate again
+        restart = False
+        center_found = 0
+        for idx, center in enumerate(centers):
+            if len(clusters[idx]) == 0:
+                # Some cluster doesn't have elements
+                restart = True
+                print('Restarting again: one cluster has no values')
                 centers = [[random.randint(0, 255) for _ in range(3)] for _ in range(k)]
                 iteration_num = 0
-                print('1 cluster had 0 elements due to bad random initialization of the centers. Starting anew')
-                start_anew = True
-            # else if all clusters have at least 1 pixel
             else:
-                c_new = []
+                new_centers = []
                 for color in range(3):
-                    c_new.append(sum(v[color] for v in clusters[i]) / len(clusters[i]))
-                if euclidian_distance(c, c_new) < 1:
-                    num_converged_centers += 1
-                centers[i] = c_new
-        if start_anew:
+                    new_centers.append(sum(v[color] for v in clusters[idx]) / len(clusters[idx]))
+                if get_distance(center, new_centers) < 1:
+                    center_found += 1
+                centers[idx] = new_centers
+        if restart:
             continue
 
         iteration_num += 1
         print('iteration num = ', iteration_num)
 
-        if num_converged_centers == k:
+        if center_found == k:
             convergence = True
-            print('converged')
 
-    # after it converged
-    # turn cluster numbers into final central values in the output image
-    for y, row in enumerate(pixel_to_cluster):
+    # convert the image to the center colors
+    for y, row in enumerate(final_img):
         for x, p in enumerate(row):
-            clustered_image[y, x] = centers[p]
+            final_img[y, x] = centers[p]
 
-    return clustered_image, centers
+    return final_img, centers
 
 
-def my_kmeans_intensity_position(img, k):
+def my_kmeans_position(image, k):
+    final_img = image.copy()
+    h, w = image.shape[0], image.shape[1]
     centers = [[random.randint(0, 255) for _ in range(3)] for _ in range(k)]
-    clustered_image = img.copy()
-    height, width = img.shape[0], img.shape[1]
-    data = np.zeros((height, width, 3), dtype=float)
-    for y, row in enumerate(img):
+    data = np.zeros((h, w, 3), dtype=float)
+    for y, row in enumerate(image):
         for x, p in enumerate(row):
-            data[y, x, 0] = img[y, x]
-            data[y, x, 1] = y * 255 / height
-            data[y, x, 2] = x * 255 / width
+            data[y, x, 0] = image[y, x]
+            data[y, x, 1] = y * 255 / h
+            data[y, x, 2] = x * 255 / w
     clusters = [[] for _ in range(k)]
 
     convergence = False
     iteration_num = 0
     while not convergence:
         # assign each point to the cluster of closest center
-        for y, row in enumerate(data):
-            for x, p in enumerate(row):
-                min_distance = 256
-                cluster_num = -1
+        for y in range(image.shape[0]):
+            for x in range(image.shape[1]):
+                min_dist = 256
+                idx_cluster = -1
 
-                for i, c in enumerate(centers):
-                    distance_for_this_center = euclidian_distance(p, c)
-                    if distance_for_this_center < min_distance:
-                        min_distance = distance_for_this_center
-                        cluster_num = i
+                for idx, center in enumerate(centers):
+                    dist = get_distance(image[y, x], center)
+                    if dist < min_dist:
+                        min_dist = dist
+                        idx_cluster = idx
 
-                clusters[cluster_num].append(p)  # add data value to the list of values in the cluster
-                clustered_image[y, x] = cluster_num  # cluster number -> temporary value in the clustered image
+                clusters[idx_cluster].append(image[y, x])
+                final_img[y, x] = idx_cluster
 
         # update clusters' centers and check for convergence
-        start_anew = False
-        num_converged_centers = 0
-        for i, c in enumerate(centers):
-            # if some cluster ended up having no elements
-            if len(clusters[i]) == 0:
-                # that means random initialization was bad
-                # initialize new random centers and iterate again
+        restart = False
+        center_found = 0
+        for idx, center in enumerate(centers):
+            if len(clusters[idx]) == 0:
+                # some cluster doesn't have elements
+                restart = True
+                print('Restarting again: one cluster has no values')
                 centers = [[random.randint(0, 255) for _ in range(3)] for _ in range(k)]
                 iteration_num = 0
-                print('1 cluster had 0 elements due to bad random initialization of the centers. Starting anew')
-                start_anew = True
-            # else if all clusters have at least 1 pixel
             else:
-                c_new = []
+                new_centers = []
                 for feature_num in range(3):
-                    c_new.append(sum(v[feature_num] for v in clusters[i]) / len(clusters[i]))
-                if euclidian_distance(c, c_new) < 1:
-                    num_converged_centers += 1
-                centers[i] = c_new
-        if start_anew:
+                    new_centers.append(sum(i[feature_num] for i in clusters[idx]) / len(clusters[idx]))
+                if get_distance(center, new_centers) < 1:
+                    center_found += 1
+                centers[idx] = new_centers
+
+        if restart:
             continue
 
         iteration_num += 1
         print('iteration num = ', iteration_num)
 
-        if num_converged_centers == k:
+        if center_found == k:
             convergence = True
-            print('converged')
 
-    # after it converged
-    # turn cluster numbers into final central values in the output image
-    for y, row in enumerate(clustered_image):
+    # convert the image to the center colors
+    for y, row in enumerate(final_img):
         for x, p in enumerate(row):
-            clustered_image[y, x] = centers[p][0]
+            final_img[y, x] = centers[p]
 
-    return clustered_image, centers
+    return final_img, centers
 
 
 def task_3_a():
-    ks = (2, 4, 6)
+    cluster_n = [2, 4, 6]
     print("Task 3 (a) ...")
-    img = cv.imread('./images/flower.png', cv.IMREAD_GRAYSCALE)
+    img = cv.imread('./images/flower.png', 0)
 
-    for k in ks:
-        clustered_image, centers = my_kmeans_intensity(img, k)
-        print(f'3a - {k} clusters. centers:{", ".join(str(c) for c in centers)}')
-        display_image(f'3a - {k} clusters', clustered_image)
+    for k in cluster_n:
+        clustered_image, centers = my_kmeans_gray(img, k)
+        print('displaying image with {} clusters'.format(k))
+        display_image('Cluster: {}'.format(k), clustered_image)
 
 
 def task_3_b():
-    ks = (2, 4, 6)
+    cluster_n = [2, 4, 6]
     print("Task 3 (b) ...")
     img = cv.imread('./images/flower.png')
 
-    for k in ks:
-        clustered_image, centers = my_kmeans_rgb(img, k)
-        print(f'3b - {k} clusters. centers:{", ".join(str(c) for c in centers)}')
-        display_image(f'3b - {k} clusters', clustered_image)
+    for k in cluster_n:
+        clustered_image, centers = my_kmeans_color(img, k)
+        print('displaying image with {} clusters'.format(k))
+        display_image('Cluster: {}'.format(k), clustered_image)
 
 
 def task_3_c():
-    ks = (2, 4, 6)
+    cluster_n = [2, 4, 6]
     print("Task 3 (c) ...")
-    img = cv.imread('./images/flower.png', cv.IMREAD_GRAYSCALE)
+    img = cv.imread('./images/flower.png', 0)
 
-    for k in ks:
-        clustered_image, centers = my_kmeans_intensity_position(img, k)
-        print(f'3c - {k} clusters. centers:{", ".join(str(c) for c in centers)}')
-        display_image(f'3c - {k} clusters', clustered_image)
+    for k in cluster_n:
+        clustered_image, centers = my_kmeans_position(img, k)
+        print('displaying image with {} clusters'.format(k))
+        display_image('Cluster: {}'.format(k), clustered_image)
 
 
 ##############################################
@@ -542,7 +525,7 @@ def task_3_c():
 ##############################################
 
 
-def task_4_a():
+def task_4_ab():
     print("Task 4 (a) ...")
     D = [
         # A, B, C, D, E, F, G, H
@@ -612,10 +595,10 @@ def task_4_a():
 ##############################################
 
 if __name__ == "__main__":
-    # task_1_a()
-    # task_1_b()
-    # task_2()
-    # task_3_a()
-    # task_3_b()
-    # task_3_c()
-    task_4_a()
+    task_1_a()
+    task_1_b()
+    task_2()
+    task_3_a()
+    task_3_b()
+    task_3_c()
+    task_4_ab()
