@@ -14,9 +14,9 @@ def plot_snake(ax, V, fill='green', line='red', alpha=1, with_txt=False):
     :param with_txt: if True plot numbers as well
     :return:
     """
-    V_plt = np.append(V.reshape(-1), V[0,:]).reshape((-1, 2))
-    ax.plot(V_plt[:,0], V_plt[:,1], color=line, alpha=alpha)
-    ax.scatter(V[:,0], V[:,1], color=fill,
+    V_plt = np.append(V.reshape(-1), V[0, :]).reshape((-1, 2))
+    ax.plot(V_plt[:, 0], V_plt[:, 1], color=line, alpha=alpha)
+    ax.scatter(V[:, 0], V[:, 1], color=fill,
                edgecolors='black',
                linewidth=2, s=50, alpha=alpha)
     if with_txt:
@@ -53,34 +53,75 @@ def load_data(fpath, radius):
 # ------------------------
 
 
+def get_gradient_image(img):
+    return None
+
+
+def get_external(img_gradient, vertices, k_size):
+    matrix_shape = (k_size, vertices.shape[0])
+    U_external = np.zeros(matrix_shape)
+    k_half = (k_size // 2)
+    for n in range(vertices.shape[0]):
+        y_vert = vertices[n, 0]
+        x_vert = vertices[n, 1]
+        k = 0
+        for y_kern in range(-k_half, k_half + 1):
+            for x_kern in range(-k_half, k_half + 1):
+                U_external[k, n] = img_gradient[y_vert + y_kern, x_vert + x_kern]
+                k += 1
+    return U_external
+
+
+def euclidian_distance(a, b):
+    return 0
+
+
+def get_distances(vertices, k_size):
+    k_total = k_size ** 2
+    k_half = (k_size // 2)
+    Pnk = np.zeros((k_total, k_total))
+    for k in enumerate(range(k_half)):
+        l = 0
+
+    return None
+
+
+def compute_new_vertices(vertices, U_external, k_size):
+    matrix_shape = (k_size, vertices.shape[0])
+    S_energies = np.zeros(matrix_shape)
+    S_paths = np.zeros(matrix_shape)
+    S_energies[:0] = U_external[:, 0]
+    k_total = k_size ** 2
+    for n in range(1, vertices.shape[0]):
+        Pnk = get_distances(vertices, k_size)
+
+    return np.array([[]])
+
+
 def run(fpath, radius):
     """ run experiment
     :param fpath:
     :param radius:
     :return:
     """
-    Im, V = load_data(fpath, radius)
-
+    img, vertices = load_data(fpath, radius)
+    img_gradient = cv2.Laplacian(img, cv2.CV_64F)
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111)
     n_steps = 200
-
-    # ------------------------
-    # your implementation here
-
-    # ------------------------
+    k_size = 3
 
     for t in range(n_steps):
-        # ------------------------
-        # your implementation here
-
-        # ------------------------
-
+        U_external = get_external(img_gradient, vertices, k_size)
+        new_vertices = compute_new_vertices(vertices, U_external, k_size)
         ax.clear()
-        ax.imshow(Im, cmap='gray')
+        ax.imshow(img, cmap='gray')
         ax.set_title('frame ' + str(t))
-        plot_snake(ax, V)
+        plot_snake(ax, new_vertices)
         plt.pause(0.01)
+
+        if new_vertices == vertices:
+            break
 
     plt.pause(2)
 
