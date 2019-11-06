@@ -5,6 +5,17 @@ import cv2
 import random
 
 
+def display_image(window_name, img):
+    """
+        Displays image with given window name.
+        :param window_name: name of the window
+        :param img: image object to display
+    """
+    cv2.imshow(window_name, img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
 def plot_snake(ax, V, fill='green', line='red', alpha=1, with_txt=False):
     """ plots the snake onto a sub-plot
     :param ax: subplot (fig.add_subplot(abc))
@@ -54,8 +65,41 @@ def load_data(fpath, radius):
 # ------------------------
 
 
+def get_exponent(x, y, sigma):
+    return -1 * (x * x + y * y) / (2 * sigma)
+
+
+def get_derivative_of_gaussian_kernel(size, sigma):
+    assert size > 0 and size % 2 == 1 and sigma > 0
+
+    kernel_x = np.zeros((size, size))
+    kernel_y = np.zeros((size, size))
+
+    size_half = size // 2
+
+    for i in range(size):
+        y = i - size_half
+        for j in range(size):
+            x = j - size_half
+            kernel_x[i, j] = (
+                    -1
+                    * (x / (2 * np.pi * sigma * sigma))
+                    * np.exp(get_exponent(x, y, sigma))
+            )
+            kernel_y[i, j] = (
+                    -1
+                    * (y / (2 * np.pi * sigma * sigma))
+                    * np.exp(get_exponent(x, y, sigma))
+            )
+
+    return kernel_x, kernel_y
+
+
 def get_gradient_image(img):
-    return None
+    kernel_x, kernel_y = get_derivative_of_gaussian_kernel(5, 0.6)
+    edges_x = cv2.filter2D(img, ddepth=cv2.CV_32F, kernel=kernel_x)
+    edges_y = cv2.filter2D(img, ddepth=cv2.CV_32F, kernel=kernel_y)
+    return np.float32(np.sqrt(edges_x * edges_x + edges_y * edges_y))
 
 
 def get_external_w_points(img_gradient, vertices, k_size):
@@ -80,14 +124,14 @@ def get_external_w_points(img_gradient, vertices, k_size):
     # for each iteration 2, ..., n
     for n in range(vertices.shape[0]):
         k = 0
-        y_vert = vertices[n, 0]
-        x_vert = vertices[n, 1]
+        x_vert = vertices[n, 0]
+        y_vert = vertices[n, 1]
         for y_kern in range(-k_half, k_half + 1):
             for x_kern in range(-k_half, k_half + 1):
                 y = y_vert + y_kern
                 x = x_vert + x_kern
                 U_points[k, n] = [y, x]
-                U_external[k, n] = - img_gradient[y, x]
+                U_external[k, n] = - (img_gradient[y, x] ** 2)
                 k += 1
     return U_external, U_points
 
@@ -103,7 +147,7 @@ def euclidean_distance(a, b):
     return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
 
 
-def get_distances(points_n, points_n_1, k_size, alpha=1):
+def get_distances(points_n, points_n_1, k_size, alpha=10):
     """
     Get distance between each connection from 1 to n.
     :param points_n:
@@ -119,8 +163,9 @@ def get_distances(points_n, points_n_1, k_size, alpha=1):
     for k in range(points_n.shape[0]):
         for l in range(points_n_1.shape[0]):
             Pn[k, l] = euclidean_distance(points_n[k], points_n_1[l])
-
-    return alpha * (Pn - Pn.mean()) ** 2
+    mean_d = Pn.mean()
+    Pn = alpha * ((Pn) ** 2)
+    return Pn
 
 
 def compute_new_vertices(vertices, U_external, U_points, k_size):
@@ -166,7 +211,7 @@ def compute_new_vertices(vertices, U_external, U_points, k_size):
     for n in range(S_energies.shape[1]):
         idx_n = idx_vertices[n]
         new_vertices[n] = U_points[idx_n, n]
-
+    new_vertices = np.roll(new_vertices, 1, axis=1)
     return new_vertices
 
 
@@ -177,7 +222,7 @@ def run(fpath, radius):
     :return:
     """
     img, vertices = load_data(fpath, radius)
-    img_gradient = cv2.Laplacian(img, cv2.CV_64F)
+    img_gradient = get_gradient_image(img)
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111)
     n_steps = 200
@@ -192,10 +237,10 @@ def run(fpath, radius):
         plot_snake(ax, new_vertices)
         plt.pause(0.01)
 
-        # if (new_vertices == vertices).all():
-        #     print('found')
-        #     break
-        # else:
+        if (new_vertices == vertices).all():
+            print('found')
+            break
+
         roll_rand = random.randint(0, new_vertices.shape[0] - 1)
         vertices = np.roll(new_vertices, roll_rand, axis=0)
 
