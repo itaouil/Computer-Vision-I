@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 from matplotlib import rc
 rc('text', usetex=True)  # if you do not have latex installed simply uncomment this line + line 75
 
-
 def load_data():
     """ loads the data for this task
     :return:
@@ -24,7 +23,6 @@ def load_data():
 
     return Im, phi
 
-
 def get_contour(phi):
     """ get all points on the contour
     :param phi:
@@ -41,36 +39,50 @@ def get_contour(phi):
 # ===========================================
 # RUNNING
 # ===========================================
+def geodesic(image_gradient):
+    """
+        Compute geodesic
+        function values
+        relative to the
+        image gradient
+    """
+    # Compute the magnitude
+    magnitude_gradient = magnitude(image_gradient)
 
-# FUNCTIONS
-# ------------------------
-# your implementation here
-
-# ------------------------
-
+    # Return geodesic function
+    return 1 / (magnitude_gradient + 1)
 
 if __name__ == '__main__':
-
+    # Define number of steps
     n_steps = 20000
     plot_every_n_step = 100
 
+    # Image and relative phi
     Im, phi = load_data()
 
+    # Plotting figure
     fig = plt.figure(figsize=(16, 8))
     ax1 = fig.add_subplot(121)
     ax2 = fig.add_subplot(122)
 
-    # ------------------------
-    # your implementation here
+    # Compute w
+    w = geodesic(grad(Im))
 
-    # ------------------------
+    # Compute gradient of w
+    dw = grad(w)
+
+    # Tau/Step size
+    tau = 0.5
 
     for t in range(n_steps):
+        # Compute mean curvature motion
+        curvature = compute_curvature(phi)
 
-        # ------------------------
-        # your implementation here
+        # Compute propagation term
+        propagation = dw * grad(phi)
 
-        # ------------------------
+        # Update phi
+        phi += tau * w * (curvature + propagation)
 
         if t % plot_every_n_step == 0:
             ax1.clear()
