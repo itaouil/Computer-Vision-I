@@ -2,7 +2,9 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from matplotlib import rc
-rc('text', usetex=True)  # if you do not have latex installed simply uncomment this line + line 75
+
+
+# rc('text', usetex=True)  # if you do not have latex installed simply uncomment this line + line 75
 
 
 def load_data():
@@ -11,7 +13,7 @@ def load_data():
     """
     fpath = 'images/ball.png'
     radius = 70
-    Im = cv2.imread(fpath, 0).astype('float32')/255  # 0 .. 1
+    Im = cv2.imread(fpath, 0).astype('float32') / 255  # 0 .. 1
 
     # we resize the image to speed-up the level set method
     Im = cv2.resize(Im, dsize=(0, 0), fx=0.5, fy=0.5)
@@ -38,15 +40,42 @@ def get_contour(phi):
     Y, X = np.nonzero(D)
     return np.array([X, Y]).transpose()
 
+
+def display_image(window_name, img):
+    """
+        Displays image with given window name.
+        :param window_name: name of the window
+        :param img: image object to display
+    """
+    cv2.imshow(window_name, img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+def grad(g):
+    kernel_x = np.array([[-1, 1]])
+    kernel_y = np.array([[-1], [1]])
+    dx = cv2.filter2D(g.copy(), -1, kernel_x)
+    dy = cv2.filter2D(g.copy(), -1, kernel_y)
+    return dx, dy
+
+
+def magnitude(dx, dy):
+    return np.sqrt(dx ** 2 + dy ** 2)
+
+
+def compute_curvature(phi):
+    phi_x, phi_y = grad(phi)
+    phi_xy = magnitude(phi_x, phi_y)
+    phi_xx, phi_yy = grad(phi_xy)
+
+    return ((phi_xx * (phi_y ** 2) - 2 * phi_x * phi_y * phi_xy +
+             phi_yy * (phi_x ** 2)) / (phi_x ** 2 + phi_y ** 2))
+
+
 # ===========================================
 # RUNNING
 # ===========================================
-
-# FUNCTIONS
-# ------------------------
-# your implementation here
-
-# ------------------------
 
 
 if __name__ == '__main__':
@@ -60,11 +89,8 @@ if __name__ == '__main__':
     ax1 = fig.add_subplot(121)
     ax2 = fig.add_subplot(122)
 
-    # ------------------------
-    # your implementation here
 
-    # ------------------------
-
+    pass
     for t in range(n_steps):
 
         # ------------------------

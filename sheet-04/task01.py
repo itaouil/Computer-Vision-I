@@ -58,12 +58,6 @@ def load_data(fpath, radius):
 # RUNNING
 # ===========================================
 
-# FUNCTIONS
-# ------------------------
-# your implementation here
-
-# ------------------------
-
 
 def get_exponent(x, y, sigma):
     return -1 * (x * x + y * y) / (2 * sigma)
