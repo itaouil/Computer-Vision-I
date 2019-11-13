@@ -55,12 +55,6 @@ def load_data(fpath, radius):
 # RUNNING
 # ===========================================
 
-# FUNCTIONS
-# ------------------------
-# your implementation here
-
-# ------------------------
-
 def pairs_distance(V):
     """
         Compute mean distance

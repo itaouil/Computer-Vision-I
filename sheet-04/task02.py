@@ -2,7 +2,11 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from matplotlib import rc
-rc('text', usetex=True)  # if you do not have latex installed simply uncomment this line + line 75
+import sys
+np.set_printoptions(threshold=sys.maxsize)
+
+
+# rc('text', usetex=True)  # if you do not have latex installed simply uncomment this line + line 75
 
 def load_data():
     """ loads the data for this task
@@ -10,7 +14,7 @@ def load_data():
     """
     fpath = 'images/ball.png'
     radius = 70
-    Im = cv2.imread(fpath, 0).astype('float32')/255  # 0 .. 1
+    Im = cv2.imread(fpath, 0).astype('float32') / 255  # 0 .. 1
 
     # we resize the image to speed-up the level set method
     Im = cv2.resize(Im, dsize=(0, 0), fx=0.5, fy=0.5)
@@ -36,10 +40,38 @@ def get_contour(phi):
     Y, X = np.nonzero(D)
     return np.array([X, Y]).transpose()
 
-# ===========================================
-# RUNNING
-# ===========================================
-def geodesic(image_gradient):
+def display_image(window_name, img):
+    """
+        Displays image with given window name.
+        :param window_name: name of the window
+        :param img: image object to display
+    """
+    cv2.imshow(window_name, img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+def grad(g, split=False):
+    kernel_x = np.array([[-1, 1]])
+    kernel_y = np.array([[-1], [1]])
+    dx = cv2.filter2D(g.copy(), -1, kernel_x)
+    dy = cv2.filter2D(g.copy(), -1, kernel_y)
+    if split:
+        return dx, dy
+    else:
+        return np.array([dx, dy])
+
+def magnitude(dg):
+    return np.sqrt(dg[0] ** 2 + dg[1] ** 2)
+
+def compute_curvature(phi):
+    phi_x, phi_y = grad(phi, True)
+    phi_xy = magnitude(np.array([phi_x, phi_y]))
+    phi_xx, phi_yy = grad(phi_xy, True)
+
+    return ((phi_xx * (phi_y ** 2) - 2 * phi_x * phi_y * phi_xy +
+             phi_yy * (phi_x ** 2)) / (phi_x ** 2 + phi_y ** 2))
+
+def geodesic(gradient):
     """
         Compute geodesic
         function values
@@ -47,7 +79,7 @@ def geodesic(image_gradient):
         image gradient
     """
     # Compute the magnitude
-    magnitude_gradient = magnitude(image_gradient)
+    magnitude_gradient = magnitude(gradient)
 
     # Return geodesic function
     return 1 / (magnitude_gradient + 1)
@@ -67,19 +99,20 @@ if __name__ == '__main__':
 
     # Compute w
     w = geodesic(grad(Im))
+    print("geodesic: ", w[150:300, 150:300])
 
     # Compute gradient of w
-    dw = grad(w)
+    dw = magnitude(grad(w))
 
     # Tau/Step size
     tau = 0.5
 
-    for t in range(n_steps):
+    for t in range(1):
         # Compute mean curvature motion
         curvature = compute_curvature(phi)
 
         # Compute propagation term
-        propagation = dw * grad(phi)
+        propagation = dw * magnitude(grad(phi))
 
         # Update phi
         phi += tau * w * (curvature + propagation)
