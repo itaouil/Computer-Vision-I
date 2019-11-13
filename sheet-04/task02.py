@@ -5,7 +5,6 @@ from matplotlib import rc
 import sys
 np.set_printoptions(threshold=sys.maxsize)
 
-
 # rc('text', usetex=True)  # if you do not have latex installed simply uncomment this line + line 75
 
 def load_data():
@@ -50,39 +49,74 @@ def display_image(window_name, img):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-def grad(g, split=False):
-    kernel_x = np.array([[-1, 1]])
-    kernel_y = np.array([[-1], [1]])
-    dx = cv2.filter2D(g.copy(), -1, kernel_x)
-    dy = cv2.filter2D(g.copy(), -1, kernel_y)
-    if split:
-        return dx, dy
-    else:
-        return np.array([dx, dy])
+def magnitude(dx, dy):
+    """
+        Computes magnitude of an image
+    """
+    return np.sqrt(dx ** 2 + dy ** 2)
 
-def magnitude(dg):
-    return np.sqrt(dg[0] ** 2 + dg[1] ** 2)
+def compute_derivative(image, kernel):
+    """
+        Compute derivative with correlation
+    """
+    return cv2.filter2D(image.copy(), -1, kernel)
 
 def compute_curvature(phi):
-    phi_x, phi_y = grad(phi, True)
-    phi_xy = magnitude(np.array([phi_x, phi_y]))
-    phi_xx, phi_yy = grad(phi_xy, True)
-
-    return ((phi_xx * (phi_y ** 2) - 2 * phi_x * phi_y * phi_xy +
-             phi_yy * (phi_x ** 2)) / (phi_x ** 2 + phi_y ** 2))
-
-def geodesic(gradient):
     """
-        Compute geodesic
-        function values
-        relative to the
-        image gradient
+        Mean curvature motion
     """
-    # Compute the magnitude
-    magnitude_gradient = magnitude(gradient)
+    # Compute first derivatives
+    phi_x = compute_derivative(phi, np.array([[-1, 0, 1]])) * 0.5
+    phi_y = compute_derivative(phi, np.array([[-1], [0], [1]])) * 0.5
 
-    # Return geodesic function
-    return 1 / (magnitude_gradient + 1)
+    # Compute second derivatives
+    phi_xx = compute_derivative(phi, np.array([[1, -2, 1]]))
+    phi_yy = compute_derivative(phi, np.array([[1], [-2], [1]]))
+
+    # Compute derivative xy
+    phi_xy = compute_derivative(phi, np.array([[1, 0, -1], [0, 0, 0], [-1, 0, 1]])) * 0.25
+
+    # Curvature motion terms
+    first_term = phi_xx * (phi_y ** 2)
+    second_term = 2 * phi_x * phi_y * phi_xy
+    third_term = phi_yy * (phi_x ** 2)
+    fourth_term = (phi_x ** 2) + (phi_y ** 2) + (10 ** -4)
+
+    return ((first_term + second_term + third_term) / fourth_term)
+
+def compute_propagation(w, phi):
+    """
+        Propagation term
+    """
+    # Compute derivatives x and y
+    wx = compute_derivative(w, np.array([[-1, 1]]))
+    wy = compute_derivative(w, np.array([[-1], [1]]))
+
+    # Get max and min of wx
+    wx_max = np.maximum(wx, 0)
+    wx_min = np.minimum(wx, 0)
+
+    # Get max and min of wy
+    wy_max = np.maximum(wy, 0)
+    wy_min = np.minimum(wy, 0)
+
+    # Compute derivative of wx shift
+    wx_shift = np.zeros((w.shape[0], w.shape[1] + 1))
+    wx_shift[:, 1:] = wx
+    wx_shift = compute_derivative(wx_shift, np.array([[-1, 1]]))[:, 1:]
+
+    # Compute derivative of wy shift
+    wy_shift = np.zeros((w.shape[0] + 1, w.shape[1]))
+    wy_shift[1:, :] = wy
+    wy_shift = compute_derivative(wy_shift, np.array([[-1], [1]]))[1:, :]
+
+    return wx_max * wx + wx_min * wx_shift + wy_max * wy + wy_min * wy_shift
+
+def geodesic(dx, dy):
+    """
+        Compute geodesic function
+    """
+    return 1 / np.sqrt(((magnitude(dx, dy) ** 2) + 1))
 
 if __name__ == '__main__':
     # Define number of steps
@@ -97,25 +131,25 @@ if __name__ == '__main__':
     ax1 = fig.add_subplot(121)
     ax2 = fig.add_subplot(122)
 
-    # Compute w
-    w = geodesic(grad(Im))
-    print("geodesic: ", w[150:300, 150:300])
+    # Compute image gradient x and y
+    im_x = compute_derivative(Im, np.array([[-1, 1]]))
+    im_y = compute_derivative(Im, np.array([[-1], [1]]))
 
-    # Compute gradient of w
-    dw = magnitude(grad(w))
+    w = geodesic(im_x, im_y)
 
     # Tau/Step size
     tau = 0.5
 
-    for t in range(1):
+    for t in range(n_steps):
+        print(t)
         # Compute mean curvature motion
         curvature = compute_curvature(phi)
 
         # Compute propagation term
-        propagation = dw * magnitude(grad(phi))
+        propagation = compute_propagation(w, phi)
 
         # Update phi
-        phi += tau * w * (curvature + propagation)
+        phi += tau * w * curvature + propagation
 
         if t % plot_every_n_step == 0:
             ax1.clear()
