@@ -169,7 +169,9 @@ def get_distances(points_n, points_n_1, k_size, pairs_distance, alpha=10):
         for l in range(points_n_1.shape[0]):
             Pn[k, l] = euclidean_distance(points_n[k], points_n_1[l])
 
-    Pn = alpha * ((Pn - np.mean(pairs_distance)) ** 2)
+    # Pn = alpha * ((Pn - np.mean(pairs_distance)) ** 2)
+    # We didn't consider the mean because it will never converge.
+    Pn = alpha * Pn ** 2
     return Pn
 
 
@@ -230,8 +232,8 @@ def run(fpath, radius):
     img_gradient = get_gradient_image(img)
     fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111)
-    n_steps = 200
-    k_size = 9
+    n_steps = 100
+    k_size = 3
 
     for t in range(n_steps):
         U_external, U_points = get_external_w_points(img_gradient, vertices, k_size)

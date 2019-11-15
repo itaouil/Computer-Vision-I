@@ -111,12 +111,13 @@ def compute_curvature(p):
 
 def compute_propagation(w, phi):
     dw_x, dw_y = grad(w)
-    max_x = np.where(dw_x < 0, 0, dw_x)
-    max_y = np.where(dw_y < 0, 0, dw_y)
-    min_x = np.where(dw_x < 0, dw_x, 0)
-    min_y = np.where(dw_y < 0, dw_y, 0)
+    max_x = np.maximum(dw_x, 0)
+    max_y = np.maximum(dw_y, 0)
+    min_x = np.minimum(dw_x, 0)
+    min_y = np.minimum(dw_y, 0)
+
     dphi_x, dphi_y = grad(phi, True)
-    dphi_x_f, dphi_y_f = grad_flipped(phi)
+    dphi_x_f, dphi_y_f = grad(phi, True)
 
     return (max_x * dphi_x + min_x * dphi_x_f +
             max_y * dphi_y + min_y * dphi_y_f)
@@ -133,12 +134,12 @@ def geodesic(gradient):
     magnitude_gradient = magnitude(gradient)
 
     # Return geodesic function
-    return 1 / (magnitude_gradient ** 2 + 1)
+    return 1 / (magnitude_gradient + 1)
 
 
 def start_level_set():
     # Define number of steps
-    n_steps = 20000
+    n_steps = 7200
     plot_every_n_step = 100
 
     # Image and relative phi
@@ -153,7 +154,7 @@ def start_level_set():
     w = geodesic(grad(Im))
 
     # Tau/Step size
-    tau = 0.05
+    tau = 0.2
 
     for t in range(n_steps):
         # Compute mean curvature motion
