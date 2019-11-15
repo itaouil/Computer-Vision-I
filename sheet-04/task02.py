@@ -2,8 +2,6 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from matplotlib import rc
-import sys
-np.set_printoptions(threshold=sys.maxsize)
 
 # rc('text', usetex=True)  # if you do not have latex installed simply uncomment this line + line 75
 
@@ -26,6 +24,7 @@ def load_data():
 
     return Im, phi
 
+
 def get_contour(phi):
     """ get all points on the contour
     :param phi:
@@ -39,6 +38,7 @@ def get_contour(phi):
     Y, X = np.nonzero(D)
     return np.array([X, Y]).transpose()
 
+
 def display_image(window_name, img):
     """
         Displays image with given window name.
@@ -49,40 +49,78 @@ def display_image(window_name, img):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-def magnitude(dx, dy):
-    """
-        Computes magnitude of an image
-    """
-    return np.sqrt(dx ** 2 + dy ** 2)
 
-def compute_derivative(image, kernel):
-    """
-        Compute derivative with correlation
-    """
-    return cv2.filter2D(image.copy(), -1, kernel)
+def grad(g, split=False):
+    kernel_x = np.array([[-1, 1]])
+    kernel_y = np.array([[-1], [1]])
+    dx = cv2.filter2D(g.copy(), -1, kernel_x)
+    dy = cv2.filter2D(g.copy(), -1, kernel_y)
+    if split:
+        return dx, dy
+    else:
+        return np.array([dx, dy])
 
-def compute_curvature(phi):
-    """
-        Mean curvature motion
-    """
-    # Compute first derivatives
-    phi_x = compute_derivative(phi, np.array([[-1, 0, 1]])) * 0.5
-    phi_y = compute_derivative(phi, np.array([[-1], [0], [1]])) * 0.5
 
-    # Compute second derivatives
-    phi_xx = compute_derivative(phi, np.array([[1, -2, 1]]))
-    phi_yy = compute_derivative(phi, np.array([[1], [-2], [1]]))
+def grad_flipped(g):
+    # Add a border to the top and left
+    border_left = np.zeros((g.shape[0], 1))
+    border_top = np.zeros((g.shape[1]))
+    gx = np.hstack((border_left, g))
+    gy = np.vstack((border_top, g))
 
-    # Compute derivative xy
-    phi_xy = compute_derivative(phi, np.array([[1, 0, -1], [0, 0, 0], [-1, 0, 1]])) * 0.25
+    # Computation of the partial derivatives
+    kernel = np.array([[-1, 1]])
+    dx = cv2.filter2D(gx.copy(), -1, kernel)
+    dy = cv2.filter2D(gy.copy(), -1, kernel.T)
+    return dx[:, :-1], dy[:-1, :]
 
-    # Curvature motion terms
-    first_term = phi_xx * (phi_y ** 2)
-    second_term = 2 * phi_x * phi_y * phi_xy
-    third_term = phi_yy * (phi_x ** 2)
-    fourth_term = (phi_x ** 2) + (phi_y ** 2) + (10 ** -4)
 
-    return ((first_term - second_term + third_term) / fourth_term)
+def der_first(g):
+    kernel = np.array([[-1, 0, 1]])
+    dx = cv2.filter2D(g.copy(), -1, kernel) * (1 / 2)
+    dy = cv2.filter2D(g.copy(), -1, kernel.T) * (1 / 2)
+    return dx, dy
+
+
+def der_sec(g):
+    kernel = np.array([[1, -2, 1]])
+    dxx = cv2.filter2D(g.copy(), -1, kernel)
+    dyy = cv2.filter2D(g.copy(), -1, kernel.T)
+    return dxx, dyy
+
+
+def der_first_matched(g):
+    kernel = np.array([[1, 0, -1], [0, 0, 0], [-1, 0, 1]])
+    dg = cv2.filter2D(g.copy(), -1, kernel) * (1 / 4)
+    return dg
+
+
+def magnitude(dg):
+    return np.sqrt(dg[0] ** 2 + dg[1] ** 2)
+
+
+def compute_curvature(p):
+    dphi_x, dphi_y = der_first(p)
+    dphi_xx, dphi_yy = der_sec(p)
+    dphi_xy = der_first_matched(p)
+
+    return ((dphi_xx * (dphi_y ** 2) - 2 * dphi_x * dphi_y * dphi_xy +
+             dphi_yy * (dphi_x ** 2)) / ((dphi_x ** 2) + (dphi_y ** 2) + (10 ** -4)))
+
+
+def compute_propagation(w, phi):
+    dw_x, dw_y = grad(w)
+    max_x = np.maximum(dw_x, 0)
+    max_y = np.maximum(dw_y, 0)
+    min_x = np.minimum(dw_x, 0)
+    min_y = np.minimum(dw_y, 0)
+
+    dphi_x, dphi_y = grad(phi, True)
+    dphi_x_f, dphi_y_f = grad(phi, True)
+
+    return (max_x * dphi_x + min_x * dphi_x_f +
+            max_y * dphi_y + min_y * dphi_y_f)
+
 
 def compute_propagation(w, phi):
     """
@@ -124,9 +162,10 @@ def geodesic(dx, dy):
     """
     return 1 / ((magnitude(dx, dy) ** 2) + 1)
 
-if __name__ == '__main__':
+
+def start_level_set():
     # Define number of steps
-    n_steps = 20000
+    n_steps = 7200
     plot_every_n_step = 100
 
     # Image and relative phi
@@ -137,17 +176,13 @@ if __name__ == '__main__':
     ax1 = fig.add_subplot(121)
     ax2 = fig.add_subplot(122)
 
-    # Compute image gradient x and y
-    im_x = compute_derivative(Im, np.array([[-1, 1]]))
-    im_y = compute_derivative(Im, np.array([[-1], [1]]))
-
-    w = geodesic(im_x, im_y)
+    # Compute w
+    w = geodesic(grad(Im))
 
     # Tau/Step size
-    tau = 0.3
+    tau = 0.2
 
     for t in range(n_steps):
-        print(t)
         # Compute mean curvature motion
         curvature = compute_curvature(phi)
 
@@ -172,3 +207,7 @@ if __name__ == '__main__':
             plt.pause(0.01)
 
     plt.show()
+
+
+if __name__ == '__main__':
+    start_level_set()
