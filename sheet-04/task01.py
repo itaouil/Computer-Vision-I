@@ -4,6 +4,7 @@ import numpy as np
 import cv2
 import random
 
+
 def display_image(window_name, img):
     """
         Displays image with given window name.
@@ -13,6 +14,7 @@ def display_image(window_name, img):
     cv2.imshow(window_name, img)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
 
 def plot_snake(ax, V, fill='green', line='red', alpha=1, with_txt=False):
     """ plots the snake onto a sub-plot
@@ -32,6 +34,7 @@ def plot_snake(ax, V, fill='green', line='red', alpha=1, with_txt=False):
     if with_txt:
         for i, (x, y) in enumerate(V):
             ax.text(x, y, str(i))
+
 
 def load_data(fpath, radius):
     """
@@ -62,12 +65,14 @@ def pairs_distance(V):
     """
     pairs_distance = []
     for x in range(1, len(V)):
-        pairs_distance.append(euclidean_distance(V[x-1], V[x]))
+        pairs_distance.append(euclidean_distance(V[x - 1], V[x]))
 
     return pairs_distance
 
+
 def get_exponent(x, y, sigma):
     return -1 * (x * x + y * y) / (2 * sigma)
+
 
 def get_derivative_of_gaussian_kernel(size, sigma):
     assert size > 0 and size % 2 == 1 and sigma > 0
@@ -94,11 +99,13 @@ def get_derivative_of_gaussian_kernel(size, sigma):
 
     return kernel_x, kernel_y
 
+
 def get_gradient_image(img):
     kernel_x, kernel_y = get_derivative_of_gaussian_kernel(5, 0.6)
     edges_x = cv2.filter2D(img, ddepth=cv2.CV_32F, kernel=kernel_x)
     edges_y = cv2.filter2D(img, ddepth=cv2.CV_32F, kernel=kernel_y)
     return np.float32(np.sqrt(edges_x * edges_x + edges_y * edges_y))
+
 
 def get_external_w_points(img_gradient, vertices, k_size):
     """
@@ -133,6 +140,7 @@ def get_external_w_points(img_gradient, vertices, k_size):
                 k += 1
     return U_external, U_points
 
+
 def euclidean_distance(a, b):
     """
     Calculate the euclidean
@@ -142,6 +150,7 @@ def euclidean_distance(a, b):
     :return: the distance.
     """
     return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
+
 
 def get_distances(points_n, points_n_1, k_size, pairs_distance, alpha=10):
     """
@@ -162,6 +171,7 @@ def get_distances(points_n, points_n_1, k_size, pairs_distance, alpha=10):
 
     Pn = alpha * ((Pn - np.mean(pairs_distance)) ** 2)
     return Pn
+
 
 def compute_new_vertices(vertices, U_external, U_points, k_size):
     """
@@ -209,6 +219,7 @@ def compute_new_vertices(vertices, U_external, U_points, k_size):
     new_vertices = np.roll(new_vertices, 1, axis=1)
     return new_vertices
 
+
 def run(fpath, radius):
     """ run experiment
     :param fpath:
@@ -239,6 +250,7 @@ def run(fpath, radius):
         vertices = np.roll(new_vertices, roll_rand, axis=0)
 
     plt.pause(2)
+
 
 if __name__ == '__main__':
     run('images/ball.png', radius=120)

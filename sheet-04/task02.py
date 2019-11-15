@@ -70,26 +70,23 @@ def grad_flipped(g):
     gy = np.vstack((border_top, g))
 
     # Computation of the partial derivatives
-    kernel_x = np.array([[-1, 1]])
-    kernel_y = np.array([[-1], [1]])
-    dx = cv2.filter2D(gx.copy(), -1, kernel_x)
-    dy = cv2.filter2D(gy.copy(), -1, kernel_y)
+    kernel = np.array([[-1, 1]])
+    dx = cv2.filter2D(gx.copy(), -1, kernel)
+    dy = cv2.filter2D(gy.copy(), -1, kernel.T)
     return dx[:, :-1], dy[:-1, :]
 
 
 def der_first(g):
-    kernel_x = np.array([[-1, 0, 1]])
-    kernel_y = np.array([[-1], [0], [1]])
-    dx = cv2.filter2D(g.copy(), -1, kernel_x) * (1 / 2)
-    dy = cv2.filter2D(g.copy(), -1, kernel_y) * (1 / 2)
+    kernel = np.array([[-1, 0, 1]])
+    dx = cv2.filter2D(g.copy(), -1, kernel) * (1 / 2)
+    dy = cv2.filter2D(g.copy(), -1, kernel.T) * (1 / 2)
     return dx, dy
 
 
 def der_sec(g):
-    kernel_x = np.array([[1, -2, 1]])
-    kernel_y = np.array([[1], [-2], [1]])
-    dxx = cv2.filter2D(g.copy(), -1, kernel_x)
-    dyy = cv2.filter2D(g.copy(), -1, kernel_y)
+    kernel = np.array([[1, -2, 1]])
+    dxx = cv2.filter2D(g.copy(), -1, kernel)
+    dyy = cv2.filter2D(g.copy(), -1, kernel.T)
     return dxx, dyy
 
 
@@ -104,14 +101,12 @@ def magnitude(dg):
 
 
 def compute_curvature(p):
-    dphi_x, phi_y = der_first(p)
-    dphi_xx, phi_yy = der_sec(p)
+    dphi_x, dphi_y = der_first(p)
+    dphi_xx, dphi_yy = der_sec(p)
     dphi_xy = der_first_matched(p)
 
-    return ((dphi_xx * (phi_y ** 2) -
-             2 * dphi_x * phi_y * dphi_xy +
-             phi_yy * (dphi_x ** 2)) /
-            (dphi_x ** 2 + phi_y ** 2 + 10 ** (-4)))
+    return ((dphi_xx * (dphi_y ** 2) - 2 * dphi_x * dphi_y * dphi_xy +
+             dphi_yy * (dphi_x ** 2)) / ((dphi_x ** 2) + (dphi_y ** 2) + (10 ** -4)))
 
 
 def compute_propagation(w, phi):
@@ -138,10 +133,10 @@ def geodesic(gradient):
     magnitude_gradient = magnitude(gradient)
 
     # Return geodesic function
-    return 1 / (magnitude_gradient + 1)
+    return 1 / (magnitude_gradient ** 2 + 1)
 
 
-if __name__ == '__main__':
+def start_level_set():
     # Define number of steps
     n_steps = 20000
     plot_every_n_step = 100
@@ -157,11 +152,8 @@ if __name__ == '__main__':
     # Compute w
     w = geodesic(grad(Im))
 
-    # Compute gradient of w
-    dw = magnitude(grad(w))
-
     # Tau/Step size
-    tau = 0.5
+    tau = 0.05
 
     for t in range(n_steps):
         # Compute mean curvature motion
@@ -188,3 +180,7 @@ if __name__ == '__main__':
             plt.pause(0.01)
 
     plt.show()
+
+
+if __name__ == '__main__':
+    start_level_set()
