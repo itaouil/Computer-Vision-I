@@ -55,17 +55,6 @@ def load_data(fpath, radius):
 # RUNNING
 # ===========================================
 
-def pairs_distance(V):
-    """
-        Compute mean distance
-        of vertices.
-    """
-    pairs_distance = []
-    for x in range(1, len(V)):
-        pairs_distance.append(euclidean_distance(V[x-1], V[x]))
-
-    return pairs_distance
-
 def get_exponent(x, y, sigma):
     return -1 * (x * x + y * y) / (2 * sigma)
 
@@ -143,7 +132,7 @@ def euclidean_distance(a, b):
     """
     return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
 
-def get_distances(points_n, points_n_1, k_size, pairs_distance, alpha=10):
+def get_distances(points_n, points_n_1, k_size, alpha=20):
     """
     Get distance between each connection from 1 to n.
     :param points_n:
@@ -160,7 +149,7 @@ def get_distances(points_n, points_n_1, k_size, pairs_distance, alpha=10):
         for l in range(points_n_1.shape[0]):
             Pn[k, l] = euclidean_distance(points_n[k], points_n_1[l])
 
-    Pn = alpha * ((Pn - np.mean(pairs_distance)) ** 2)
+    Pn = alpha * (Pn ** 2)
     return Pn
 
 def compute_new_vertices(vertices, U_external, U_points, k_size):
@@ -186,7 +175,7 @@ def compute_new_vertices(vertices, U_external, U_points, k_size):
     # (the first iteration is skipped)
     for n in range(1, vertices.shape[0]):
         # get distances between n and n-1
-        Pn = get_distances(U_points[:, n], U_points[:, n - 1], k_size, pairs_distance(vertices))
+        Pn = get_distances(U_points[:, n], U_points[:, n - 1], k_size)
         S_n_1 = S_energies[:, n - 1].T
         Pn = np.add(Pn, S_n_1)
         min_idxs = np.argmin(Pn, axis=1)
@@ -241,5 +230,5 @@ def run(fpath, radius):
     plt.pause(2)
 
 if __name__ == '__main__':
-    run('images/ball.png', radius=120)
+    # run('images/ball.png', radius=120)
     run('images/coffee.png', radius=100)

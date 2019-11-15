@@ -82,7 +82,7 @@ def compute_curvature(phi):
     third_term = phi_yy * (phi_x ** 2)
     fourth_term = (phi_x ** 2) + (phi_y ** 2) + (10 ** -4)
 
-    return ((first_term + second_term + third_term) / fourth_term)
+    return ((first_term - second_term + third_term) / fourth_term)
 
 def compute_propagation(w, phi):
     """
@@ -100,23 +100,29 @@ def compute_propagation(w, phi):
     wy_max = np.maximum(wy, 0)
     wy_min = np.minimum(wy, 0)
 
+    # Compute derivative of phix
+    phi_x = compute_derivative(phi, np.array([[-1, 1]]))
+
+    # Compute derivative of phiy
+    phi_y = compute_derivative(phi, np.array([[-1], [1]]))
+
     # Compute derivative of wx shift
-    wx_shift = np.zeros((w.shape[0], w.shape[1] + 1))
-    wx_shift[:, 1:] = wx
-    wx_shift = compute_derivative(wx_shift, np.array([[-1, 1]]))[:, 1:]
+    phix_shift = np.zeros((phi.shape[0], phi.shape[1] + 1))
+    phix_shift[:, 1:] = phi
+    phix_shift = compute_derivative(phix_shift, np.array([[-1, 1]]))[:, :-1]
 
     # Compute derivative of wy shift
-    wy_shift = np.zeros((w.shape[0] + 1, w.shape[1]))
-    wy_shift[1:, :] = wy
-    wy_shift = compute_derivative(wy_shift, np.array([[-1], [1]]))[1:, :]
+    phiy_shift = np.zeros((phi.shape[0] + 1, phi.shape[1]))
+    phiy_shift[1:, :] = phi
+    phiy_shift = compute_derivative(phiy_shift, np.array([[-1], [1]]))[:-1, :]
 
-    return wx_max * wx + wx_min * wx_shift + wy_max * wy + wy_min * wy_shift
+    return wx_max * phi_x + wx_min * phix_shift + wy_max * phi_y + wy_min * phiy_shift
 
 def geodesic(dx, dy):
     """
         Compute geodesic function
     """
-    return 1 / np.sqrt(((magnitude(dx, dy) ** 2) + 1))
+    return 1 / ((magnitude(dx, dy) ** 2) + 1)
 
 if __name__ == '__main__':
     # Define number of steps
@@ -138,7 +144,7 @@ if __name__ == '__main__':
     w = geodesic(im_x, im_y)
 
     # Tau/Step size
-    tau = 0.5
+    tau = 0.3
 
     for t in range(n_steps):
         print(t)
@@ -149,7 +155,7 @@ if __name__ == '__main__':
         propagation = compute_propagation(w, phi)
 
         # Update phi
-        phi += tau * w * curvature + propagation
+        phi += tau * w * (curvature + propagation)
 
         if t % plot_every_n_step == 0:
             ax1.clear()
