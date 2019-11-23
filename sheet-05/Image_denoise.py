@@ -1,5 +1,4 @@
 import cv2
-import imageio
 import numpy as np
 import maxflow
 import matplotlib.pyplot as plt
@@ -62,8 +61,8 @@ def question_4(I, rho=0.8):
 
     # 1) Compute Unary cost
     # define unary costs
-    u_same = - np.log10(rho)
-    u_diff = - np.log10((1 - rho) / 2)
+    u_same = - np.log(rho)
+    u_diff = - np.log((1 - rho) / 2)
 
     # assign unary costs
     D = np.zeros(I.shape + labels.shape)
