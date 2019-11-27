@@ -1,8 +1,6 @@
 import cv2
-import imageio
 import numpy as np
 import maxflow
-import matplotlib.pyplot as plt
 from maxflow.fastmin import aexpansion_grid
 
 
