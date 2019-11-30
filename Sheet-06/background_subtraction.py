@@ -3,7 +3,7 @@
 import numpy as np
 import cv2 as cv
 
-def norm(x, mean, variance):
+def norm(x, mean, sigma):
     """
         Computes the probability
         for a multivariate distribution
@@ -13,9 +13,9 @@ def norm(x, mean, variance):
         :param mean: mean of Multi. Norm
         :param sigma: sigma of Multi. Norm
     """
-    normalizer = 1 / np.sqrt(2 * np.pi * np.power(variance, 2))
-    exponential = np.exp(-np.power(x - mean, 2) / (2 * np.power(variance, 2)))
-    return normalizer * exponential
+    cons = np.power(2*np.pi, -3/2) * np.power(np.linalg.det(sigma), -0.5)
+    exp = np.exp(-0.5 * (x - mean).T * np.linalg.inv(sigma) * (x - mean))
+    return cons * exp
 
 def read_image(filename):
     '''
@@ -69,49 +69,53 @@ class GMM(object):
         mean = np.zeros((1, 3))
 
         # Covariance vector
-        sigma = np.zeros((1, 3))
+        sigma = np.zeros((3, 3))
+
+        # Initial lambdas
 
         # Compute R mean and variance
-        mean[0] = np.mean(data[:, :, 0])
-        sigma[0] = np.var(data[:, :, 0])
+        mean[0] = np.mean(axis=0)
+        sigma[0,0] = np.var(axis=0)
 
         # Compute G mean and variance
-        mean[1] = np.mean(data[:, :, 1])
-        sigma[1] = np.var(data[:, :, 1])
+        mean[1] = np.mean(axis=1)
+        sigma[1,1] = np.var(axis=1)
 
         # Compute B mean and variance
-        mean[2] = np.mean(data[:, :, 2])
-        sigma[2] = np.var(data[:, :, 2])
+        mean[2] = np.mean(axis=2)
+        sigma[2,2] = np.var(axis=2)
 
-        # Add multivariate
+        # Add multivariate 
         # thetas listto
-        self.thetas.append([, mean, sigma])
+        self.thetas.append([3 * [1/3], mean, sigma])
 
 
-    def estep(self, thetas, data):
+    def estep(self, data):
         """
             Expectation step.
 
             :param data: image
             :return: returns rik
         """
+        # Number of Norm components
+        k = len(self.thetas)
+
         # Create 3D matrix containing
         # all the ri values for every
         # single component in our MoG
-        R = np.zeros((data.shape[0], len(thetas), 3))
+        R = np.zeros((data.shape[0], k))
 
         # Normalizer
-        normalizer = np.zeros((data.shape[0], 3))
+        normalizer = np.zeros((data.shape[0], k))
 
         # Populate our matrix R
         # with just the probability
         # for each pixel point
         for x in range(data.shape[0]):
-            for k, theta in enumerate(self.thetas):
-                for i in range(3):
-                    R[x, k, i] = theta[k][0] * norm(data[x, i], theta[1][i], theta[2][i])
-                    normalizer[x, i] += R[x, k, i]
-
+            for k in range(k):
+                R[x, k] = self.thetas[k][0] * norm(data[x, :], self.thetas[k][1], self.thetas[k][2])
+                normalizer[x, k] += R[x, k]
+        
         # Normalize R
         R /= normalizer
 
@@ -125,20 +129,62 @@ class GMM(object):
             :param data: image
             :return: returns rik
         """
+        # Number of Norm components
+        k = len(self.thetas)
+
+        # Common probability sum
+        prob_sum = np.zeros((k, 3))
+        
+
         # Compute lambda update
-        lambda_ = np.sum(R, axis=0)
-        lambda_ /= np.sum(R)
+        for x in range(data.shape[0]):
+            for k in range(k):
+                for i in range(3):
+                    prob_sum[k, i] += R[x,k,i]
+        
+        # Nomalize lambda_
+        lambda_ = prob_sum / np.sum(prob_sum, axis=0)
+        
 
+        # Mean matrix
+        mean = np.zeros((k, 3))
+        
         # Compute mean update
-        mean = R * data
-        mean /= np.sum()
+        for x in range(data.shape[0]):
+            for k in range(k):
+                for i in range(3):
+                    mean[k, i] += R[x,k,i] * data[x, i]
+        
+        # Nomalize mean
+        mean /= prob_sum
 
+        
+        # Sigma matrix
+        sigma = np.zeros((k, 3))
+        
         # Compute sigma update
+        for x in range(data.shape[0]):
+            for k in range(k):
+                for i in range(3):
+                    sigma[k, i] += R[x,k,i] * (data[x, :] - mean[k, :]) * (data[x, :] - mean[k, :]).T
+        
+        # Nomalize sigma
+        sigma /= prob_sum
+
+        
+        # Update thetas (i.e. components)
+        for k in range(k):
+            self.thetas[k] = [lambda_[k], mean[k], sigma[k]]
 
 
     def em_algorithm(self, data, n_iterations=10):
-        # TODO
-        pass
+        """
+            EM algorithm.
+        """
+        for _ in range(n_iterations):
+            R = self.estep(data)
+            self.mstep(data, R)
+            
 
     def split(self, epsilon=0.1):
         """
@@ -154,19 +200,19 @@ class GMM(object):
         new_thetas = []
 
         # Split given MoG
-        for component in self.thetas:
+        for theta in self.thetas:
             # Compute new lambdas
-            new_lambda = component[0] / 2
+            new_lambda = sum(theta[0]) / 2
 
-            # Compute component1 mean
-            mean1 = component[1] + (epsilon * component[2])
+            # Compute theta1 mean
+            mean1 = theta[1] + (epsilon * theta[2])
 
-            # Compute component2 mean
-            mean2 = component[1] - (epsilon * component[2])
+            # Compute theta2 mean
+            mean2 = theta[1] - (epsilon * theta[2])
 
             # Append the new components
-            new_thetas.append([new_lambda, mean1, component[2]])
-            new_thetas.append([new_lambda, mean2, component[2]])
+            new_thetas.append([3 * [new_lambda/3], mean1, theta[2]])
+            new_thetas.append([3 * [new_lambda/3], mean2, theta[2]])
 
         # Update components list
         self.thetas = new_thetas
@@ -180,8 +226,21 @@ class GMM(object):
         pass
 
     def train(self, data, n_splits):
-        # TODO
-        pass
+        """
+            Train a MoG after
+            performing a MoG
+            split using the EM
+            algorithm.
+        """
+        # Fit Normal distribution
+        self.fit_single_gaussian(data)
+
+        # Split singlt Norm in MoG
+        for _ in range(n_splits):
+            self.split()
+
+        # Perform EM training
+        self.em_algorithm(data)
 
 
 if __name__ == '__main__':
