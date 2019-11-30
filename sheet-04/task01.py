@@ -198,7 +198,7 @@ def compute_new_vertices(vertices, U_external, U_points, k_size):
     # (the first iteration is skipped)
     for n in range(1, vertices.shape[0]):
         # get distances between n and n-1
-        Pn = get_distances(U_points[:, n], U_points[:, n - 1], k_size, pairs_distance(vertices))
+        Pn = get_distances(U_points[:, n], U_points[:, n - 1], k_size)
         S_n_1 = S_energies[:, n - 1].T
         Pn = np.add(Pn, S_n_1)
         min_idxs = np.argmin(Pn, axis=1)
@@ -255,5 +255,5 @@ def run(fpath, radius):
 
 
 if __name__ == '__main__':
-    run('images/ball.png', radius=120)
+    # run('images/ball.png', radius=120)
     run('images/coffee.png', radius=100)
