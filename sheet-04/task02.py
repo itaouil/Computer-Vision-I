@@ -3,7 +3,6 @@ import cv2
 import matplotlib.pyplot as plt
 from matplotlib import rc
 
-
 # rc('text', usetex=True)  # if you do not have latex installed simply uncomment this line + line 75
 
 def load_data():
@@ -123,18 +122,45 @@ def compute_propagation(w, phi):
             max_y * dphi_y + min_y * dphi_y_f)
 
 
-def geodesic(gradient):
+def compute_propagation(w, phi):
     """
-        Compute geodesic
-        function values
-        relative to the
-        image gradient
+        Propagation term
     """
-    # Compute the magnitude
-    magnitude_gradient = magnitude(gradient)
+    # Compute derivatives x and y
+    wx = compute_derivative(w, np.array([[-1, 1]]))
+    wy = compute_derivative(w, np.array([[-1], [1]]))
 
-    # Return geodesic function
-    return 1 / (magnitude_gradient + 1)
+    # Get max and min of wx
+    wx_max = np.maximum(wx, 0)
+    wx_min = np.minimum(wx, 0)
+
+    # Get max and min of wy
+    wy_max = np.maximum(wy, 0)
+    wy_min = np.minimum(wy, 0)
+
+    # Compute derivative of phix
+    phi_x = compute_derivative(phi, np.array([[-1, 1]]))
+
+    # Compute derivative of phiy
+    phi_y = compute_derivative(phi, np.array([[-1], [1]]))
+
+    # Compute derivative of wx shift
+    phix_shift = np.zeros((phi.shape[0], phi.shape[1] + 1))
+    phix_shift[:, 1:] = phi
+    phix_shift = compute_derivative(phix_shift, np.array([[-1, 1]]))[:, :-1]
+
+    # Compute derivative of wy shift
+    phiy_shift = np.zeros((phi.shape[0] + 1, phi.shape[1]))
+    phiy_shift[1:, :] = phi
+    phiy_shift = compute_derivative(phiy_shift, np.array([[-1], [1]]))[:-1, :]
+
+    return wx_max * phi_x + wx_min * phix_shift + wy_max * phi_y + wy_min * phiy_shift
+
+def geodesic(dx, dy):
+    """
+        Compute geodesic function
+    """
+    return 1 / ((magnitude(dx, dy) ** 2) + 1)
 
 
 def start_level_set():
