@@ -13,8 +13,8 @@ def norm(x, mean, sigma):
         :param mean: mean of Multi. Norm
         :param sigma: sigma of Multi. Norm
     """
-    cons = np.power(2*np.pi, -3/2) * np.power(np.linalg.det(sigma), -0.5)
-    exp = np.exp(-0.5 * (x - mean).T * np.linalg.inv(sigma) * (x - mean))
+    cons = 1 / ((2 * np.pi * sigma ** 2) ** 0.5)
+    exp = np.exp(-(x - mean) ** 2 / (2 * sigma ** 2) )
     return cons * exp
 
 def read_image(filename):
@@ -65,29 +65,31 @@ class GMM(object):
             :param data: 3D vector of values
             :return: mean (vector), sigma (vector)
         """
+        print(data.shape)
         # Mean vector
         mean = np.zeros((1, 3))
 
         # Covariance vector
-        sigma = np.zeros((3, 3))
+        sigma = np.zeros((1, 3))
 
         # Initial lambdas
+        lambda_ = np.array([3 * [1/3]])
 
         # Compute R mean and variance
-        mean[0] = np.mean(axis=0)
-        sigma[0,0] = np.var(axis=0)
+        mean[0, 0] = np.mean(data[:, 0])
+        sigma[0, 0] = np.var(data[:, 0], dtype=np.float64)
 
         # Compute G mean and variance
-        mean[1] = np.mean(axis=1)
-        sigma[1,1] = np.var(axis=1)
+        mean[0, 1] = np.mean(data[:, 1])
+        sigma[0, 1] = np.var(data[:, 1], dtype=np.float64)
 
         # Compute B mean and variance
-        mean[2] = np.mean(axis=2)
-        sigma[2,2] = np.var(axis=2)
+        mean[0, 2] = np.mean(data[:, 2])
+        sigma[0, 2] = np.var(data[:, 2], dtype=np.float64)
 
         # Add multivariate 
         # thetas listto
-        self.thetas.append([3 * [1/3], mean, sigma])
+        self.thetas.append([lambda_, mean, sigma])
 
 
     def estep(self, data):
@@ -103,21 +105,25 @@ class GMM(object):
         # Create 3D matrix containing
         # all the ri values for every
         # single component in our MoG
-        R = np.zeros((data.shape[0], k))
+        R = np.zeros((data.shape[0], k, 3))
 
         # Normalizer
-        normalizer = np.zeros((data.shape[0], k))
+        normalizer = np.zeros((data.shape[0], 3))
 
         # Populate our matrix R
         # with just the probability
         # for each pixel point
         for x in range(data.shape[0]):
             for k in range(k):
-                R[x, k] = self.thetas[k][0] * norm(data[x, :], self.thetas[k][1], self.thetas[k][2])
-                normalizer[x, k] += R[x, k]
+                for i in range(3):
+                    lambda_i = self.thetas[k][0][0,i]
+                    norm_i = norm(data[x, i], self.thetas[k][1][0,i], self.thetas[k][2][0,i])
+                    R[x, k, i] = lambda_i * norm_i
+                    normalizer[x, i] += R[x, k, i] + 0.00001
         
         # Normalize R
-        R /= normalizer
+        for x in range(R.shape[0]):
+            R[x, :, :] /= normalizer[x, :]
 
         return R
 
@@ -202,7 +208,8 @@ class GMM(object):
         # Split given MoG
         for theta in self.thetas:
             # Compute new lambdas
-            new_lambda = sum(theta[0]) / 2
+            new_lambda = np.sum(theta[0]) / 3
+            lambda_ = np.array([3 * [new_lambda]])
 
             # Compute theta1 mean
             mean1 = theta[1] + (epsilon * theta[2])
@@ -211,8 +218,8 @@ class GMM(object):
             mean2 = theta[1] - (epsilon * theta[2])
 
             # Append the new components
-            new_thetas.append([3 * [new_lambda/3], mean1, theta[2]])
-            new_thetas.append([3 * [new_lambda/3], mean2, theta[2]])
+            new_thetas.append([lambda_, mean1, theta[2]])
+            new_thetas.append([lambda_, mean2, theta[2]])
 
         # Update components list
         self.thetas = new_thetas
@@ -244,12 +251,13 @@ class GMM(object):
 
 
 if __name__ == '__main__':
-    image, foreground, background = read_image('person.jpg')
-    display_image('', image)
-    display_image('', foreground)
-    display_image('', background)
+    image, foreground, background = read_image('/Users/dailand10/Desktop/Computer-Vision-I/Sheet-06/person.jpg')
+    # display_image('', image)
+    # display_image('', foreground)
+    # display_image('', background)
     '''
     TODO: compute p(x|w=background) for each image pixel and manipulate the image such that everything below the threshold is black, display the resulting image
     Hint: Slide 64
     '''
     gmm_background = GMM()
+    gmm_background.train(background, 1)
