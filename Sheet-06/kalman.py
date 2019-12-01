@@ -90,8 +90,8 @@ def main():
     track_smoothed = perform_tracking(fixed_lag_smoother)
 
     plt.figure()
-    # plt.plot([x[0] for x in observations], [x[1] for x in observations])
-    # plt.plot([x[0] for x in track], [x[1] for x in track])
+    plt.plot([x[0] for x in observations], [x[1] for x in observations])
+    plt.plot([x[0] for x in track], [x[1] for x in track])
     plt.plot([x[0] for x in track_smoothed], [x[1] for x in track_smoothed])
 
     plt.show()
