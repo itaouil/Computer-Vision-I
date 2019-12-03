@@ -43,10 +43,10 @@ class IterClosePoint(object):
         self.landmarks = landmarks
         self.iterations = iterations
         self.A = self.lands2A()
-        self.B = landmarks.flatten()
+        self.B = np.array([landmarks.flatten()]).T
         self.Psi = self.get_affine(self.A)
         self.DT = self.distance_transform()
-    
+
     def plot_shape(self, V, t, fill='green', line='red', alpha=1, with_txt=False):
         """ plots the snake onto a sub-plot
         :param ax: subplot (fig.add_subplot(abc))
@@ -72,7 +72,7 @@ class IterClosePoint(object):
         if with_txt:
             for i, (x, y) in enumerate(V):
                 ax.text(x, y, str(i))
-        
+
         fig.show()
 
     def distance_transform(self):
@@ -116,11 +116,14 @@ class IterClosePoint(object):
 
             # Compute derivative for
             # both x and y direction
-            G_x[l, 0] = self.DT[point_y, point_x+1] - self.DT[point_y, point_x-1]
-            G_x[l+1, 0] = self.DT[point_y, point_x+1] - self.DT[point_y, point_x-1]
+            g_x = self.DT[point_y, point_x+1] - self.DT[point_y, point_x-1]
+            g_y = self.DT[point_y+1, point_x] - self.DT[point_y-1, point_x]
 
-            G_y[l, 0] = self.DT[point_y+1, point_x] - self.DT[point_y-1, point_x]
-            G_y[l+1, 0] = self.DT[point_y+1, point_x] - self.DT[point_y-1, point_x]
+            G_x[l, 0] = g_x
+            G_x[l+1, 0] = g_x
+
+            G_y[l, 0] = g_y
+            G_y[l+1, 0] = g_y
 
         return (G_x, G_y)
 
@@ -137,12 +140,16 @@ class IterClosePoint(object):
         G_x, G_y = self.get_gradients(B_p)
 
         # Compute Closest Points
-        B_delta = ((D / np.sqrt(G_x ** 2 + G_y ** 2)) * G_x * G_y)
+        B_delta = ((D / (np.sqrt(G_x ** 2 + G_y ** 2) + .00001)) * G_x * G_y)
         CP = B_p - B_delta
 
         return CP
 
     def fit(self):
+        B_plot = np.reshape(self.B, (65, 2))
+
+        # Plot B
+        self.plot_shape(B_plot, 0)
         for iter in range(self.iterations):
             print('Iteration: {}/{}'.format(iter + 1, self.iterations))
 
@@ -163,8 +170,7 @@ class IterClosePoint(object):
     def get_affine(self, A):
         D, U, V_t = cv.SVDecomp(A)
         B_p = np.dot(U.T, self.B)
-        B_p = np.array([B_p])
-        Y = B_p.T / D
+        Y = B_p / D
         X = np.dot(V_t.T, Y)
         return X
 
@@ -185,10 +191,10 @@ def task_1():
       Main.
     """
     iterations = 5
-    # img = cv.imread("./data/hand.jpg", 0)
-    # landmarks = read_landmarks('./data/hand_landmarks.txt')
-    img = cv.imread("/Users/dailand10/Desktop/Computer-Vision-I/sheet-07/data/hand.jpg", 0)
-    landmarks = read_landmarks('/Users/dailand10/Desktop/Computer-Vision-I/sheet-07/data/hand_landmarks.txt')
+    img = cv.imread("./data/hand.jpg", 0)
+    landmarks = read_landmarks('./data/hand_landmarks.txt')
+    # img = cv.imread("/Users/dailand10/Desktop/Computer-Vision-I/sheet-07/data/hand.jpg", 0)
+    # landmarks = read_landmarks('/Users/dailand10/Desktop/Computer-Vision-I/sheet-07/data/hand_landmarks.txt')
 
     model = IterClosePoint(img, landmarks, iterations)
     model.fit()
