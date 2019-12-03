@@ -75,24 +75,27 @@ class IterClosePoint(object):
 
         return D
 
-    def get_gradients(self, D):
+    def get_gradients(self, B_p):
         """
             Compute gradients
         """
-        G = np.zeros((D.shape[0], D.shape[1]))
+        G_x = np.zeros((B_p.shape[0], B_p.shape[1]))
+        G_y = np.zeros((B_p.shape[0], B_p.shape[1]))
 
-        # First and last value
-        first_d = D[0, 0]
-        last_d = D[D.shape[0] - 1, 0]
+        for l in range(B_p.shape[0], 2):
+            # Get point
+            point_x = B_p[l, 0]
+            point_y = B_p[l+1, 0]
 
-        # Handle edge cases
-        G[0, 0] = 0.5 * (D[1, 0] - last_d)
-        G[D.shape[0] - 1, 0] = 0.5 * (first_d - D[D.shape[0] - 2, 0])
+            # Compute derivative for
+            # both x and y direction
+            G_x[l, 0] = self.DT[point_x+1, point_y] - self.DT[point_x-1, point_y]
+            G_x[l+1, 0] = self.DT[point_x+1, point_y] - self.DT[point_x-1, point_y]
 
-        for x in range(1, D.shape[0] - 1):
-            G[x, 0] = 0.5 * (D[x + 1, 0] - D[x - 1, 0])
+            G_y[l, 0] = self.DT[point_x, point_y+1] - self.DT[point_x, point_y-1]
+            G_y[l+1, 0] = self.DT[point_x, point_y+1] - self.DT[point_x, point_y-1]
 
-        return D
+        return (G_x, G_y)
 
     def ICP(self, B_p):
         """
@@ -104,10 +107,10 @@ class IterClosePoint(object):
 
         # Vector of gradients
         # for each entry in B_p
-        G = self.get_gradients(D)
+        G_x, G_y = self.get_gradients(B_p)
 
         # Compute Closest Points
-        B_delta = ((D / np.sqrt(G ** 2 + G ** 2)) * G * G)
+        B_delta = ((D / np.sqrt(G_x ** 2 + G_y ** 2)) * G_x * G_y)
         CP = B_p - B_delta
 
         return CP
@@ -150,8 +153,10 @@ def task_1():
       Main.
     """
     iterations = 5
-    img = cv.imread("./data/hand.jpg", 0)
-    landmarks = read_landmarks('./data/hand_landmarks.txt')
+    # img = cv.imread("./data/hand.jpg", 0)
+    # landmarks = read_landmarks('./data/hand_landmarks.txt')
+    img = cv.imread("/Users/dailand10/Desktop/Computer-Vision-I/sheet-07/data/hand.jpg", 0)
+    landmarks = read_landmarks('/Users/dailand10/Desktop/Computer-Vision-I/sheet-07/data/hand_landmarks.txt')
 
     model = IterClosePoint(img, landmarks, iterations)
     model.fit()
