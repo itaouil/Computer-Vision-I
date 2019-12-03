@@ -12,6 +12,7 @@ import cv2 as cv
   5) Compute next point using estimated Phi
 """
 
+
 def display_image(window_name, img):
     """
         Displays image with given window name.
@@ -44,43 +45,18 @@ class IterClosePoint(object):
         self.iterations = iterations
         self.A = self.lands2A()
         self.B = np.array([landmarks.flatten()]).T
-        self.Psi = self.get_affine(self.A)
+        self.Psi = self.get_affine()
         self.DT = self.distance_transform()
-
-    def plot_shape(self, V, t, fill='green', line='red', alpha=1, with_txt=False):
-        """ plots the snake onto a sub-plot
-        :param ax: subplot (fig.add_subplot(abc))
-        :param V: point locations ( [ (x0, y0), (x1, y1), ... (xn, yn)]
-        :param fill: point color
-        :param line: line color
-        :param alpha: [0 .. 1]
-        :param with_txt: if True plot numbers as well
-        :return:
-        """
-        fig = plt.figure(figsize=(10, 10))
-        ax = fig.add_subplot(111)
-
-        ax.clear()
-        ax.imshow(self.img, cmap='gray')
-        ax.set_title('frame ' + str(t))
-
-        V_plt = np.append(V.reshape(-1), V[0, :]).reshape((-1, 2))
-        ax.plot(V_plt[:, 0], V_plt[:, 1], color=line, alpha=alpha)
-        ax.scatter(V[:, 0], V[:, 1], color=fill,
-                edgecolors='black',
-                linewidth=2, s=50, alpha=alpha)
-        if with_txt:
-            for i, (x, y) in enumerate(V):
-                ax.text(x, y, str(i))
-
-        fig.show()
+        display_image('', self.DT.astype(np.uint8))
 
     def distance_transform(self):
         """
           Compute distance transform.
         """
-        img_canny = cv.Canny(self.img, 70, 78)
+        img_canny = cv.Canny(self.img, 40, 70)
+        display_image('', img_canny.astype(np.uint8))
         img_canny = (255 - img_canny) // 255
+
         return cv.distanceTransform(img_canny, cv.DIST_L1, 5)
 
     def get_distances(self, B_p):
@@ -112,20 +88,24 @@ class IterClosePoint(object):
         for l in range(0, B_p.shape[0], 2):
             # Get point
             point_x = int(B_p[l, 0])
-            point_y = int(B_p[l+1, 0])
+            point_y = int(B_p[l + 1, 0])
+
+            if point_x >= 600 or point_y >= 800:
+                continue
+
 
             # Compute derivative for
             # both x and y direction
-            g_x = self.DT[point_y, point_x+1] - self.DT[point_y, point_x-1]
-            g_y = self.DT[point_y+1, point_x] - self.DT[point_y-1, point_x]
+            g_x = .5 * (self.DT[point_y, point_x + 1] - self.DT[point_y, point_x - 1])
+            g_y = .5 * (self.DT[point_y + 1, point_x] - self.DT[point_y - 1, point_x])
 
             G_x[l, 0] = g_x
-            G_x[l+1, 0] = g_x
+            G_x[l + 1, 0] = 1
 
-            G_y[l, 0] = g_y
-            G_y[l+1, 0] = g_y
+            G_y[l, 0] = 1
+            G_y[l + 1, 0] = g_y
 
-        return (G_x, G_y)
+        return G_x, G_y
 
     def ICP(self, B_p):
         """
@@ -140,10 +120,11 @@ class IterClosePoint(object):
         G_x, G_y = self.get_gradients(B_p)
 
         # Compute Closest Points
+        # B_delta = (D * G_x * G_y)
         B_delta = ((D / (np.sqrt(G_x ** 2 + G_y ** 2) + .00001)) * G_x * G_y)
         CP = B_p - B_delta
 
-        return CP
+        return np.around(CP)
 
     def fit(self):
         B_plot = np.reshape(self.B, (65, 2))
@@ -157,18 +138,16 @@ class IterClosePoint(object):
             B_p = np.dot(self.A, self.Psi)
 
             # Step2: ICP
-            self.B = np.around(self.ICP(B_p))
-
-            B_plot = np.reshape(self.B, (65,2))
+            self.B = self.ICP(B_p)
 
             # Plot B
-            self.plot_shape(B_plot, iter)
+            self.plot_shape(self.B, iter)
 
             # Step3: LSA
-            self.Psi = self.get_affine(self.A)
+            self.Psi = self.get_affine()
 
-    def get_affine(self, A):
-        D, U, V_t = cv.SVDecomp(A)
+    def get_affine(self):
+        D, U, V_t = cv.SVDecomp(self.A)
         B_p = np.dot(U.T, self.B)
         Y = B_p / D
         X = np.dot(V_t.T, Y)
@@ -184,6 +163,36 @@ class IterClosePoint(object):
             A[idx_row, idx_col:idx_col + 6] = [x, y, 0, 0, 1, 0]
             A[idx_row + 1, idx_col:idx_col + 6] = [0, 0, x, y, 0, 1]
         return A
+
+    def plot_shape(self, V, t, fill='green', line='red', alpha=1, with_txt=True):
+        """ plots the snake onto a sub-plot
+        :param ax: subplot (fig.add_subplot(abc))
+        :param V: point locations ( [ (x0, y0), (x1, y1), ... (xn, yn)]
+        :param fill: point color
+        :param line: line color
+        :param alpha: [0 .. 1]
+        :param with_txt: if True plot numbers as well
+        :return:
+        """
+        V = np.reshape(V, (65, 2))
+        V
+        fig = plt.figure(figsize=(10, 10))
+        ax = fig.add_subplot(111)
+
+        ax.clear()
+        ax.imshow(self.img, cmap='gray')
+        ax.set_title('frame ' + str(t))
+
+        V_plt = np.append(V.reshape(-1), V[0, :]).reshape((-1, 2))
+        ax.plot(V_plt[:, 0], V_plt[:, 1], color=line, alpha=alpha)
+        ax.scatter(V[:, 0], V[:, 1], color=fill,
+                   edgecolors='black',
+                   linewidth=2, s=50, alpha=alpha)
+        if with_txt:
+            for i, (x, y) in enumerate(V):
+                ax.text(x, y, str(i))
+
+        fig.show()
 
 
 def task_1():
