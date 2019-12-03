@@ -1,4 +1,5 @@
-.idea
+*.idea
+*.vscode
 
 # Created by https://www.gitignore.io/api/venv,macos,python
 # Edit at https://www.gitignore.io/?templates=venv,macos,python
