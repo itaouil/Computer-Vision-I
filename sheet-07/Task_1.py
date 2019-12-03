@@ -12,7 +12,6 @@ import cv2 as cv
   5) Compute next point using estimated Phi
 """
 
-
 def display_image(window_name, img):
     """
         Displays image with given window name.
@@ -47,6 +46,34 @@ class IterClosePoint(object):
         self.B = landmarks.flatten()
         self.Psi = self.get_affine(self.A)
         self.DT = self.distance_transform()
+    
+    def plot_shape(self, V, t, fill='green', line='red', alpha=1, with_txt=False):
+        """ plots the snake onto a sub-plot
+        :param ax: subplot (fig.add_subplot(abc))
+        :param V: point locations ( [ (x0, y0), (x1, y1), ... (xn, yn)]
+        :param fill: point color
+        :param line: line color
+        :param alpha: [0 .. 1]
+        :param with_txt: if True plot numbers as well
+        :return:
+        """
+        fig = plt.figure(figsize=(10, 10))
+        ax = fig.add_subplot(111)
+
+        ax.clear()
+        ax.imshow(self.img, cmap='gray')
+        ax.set_title('frame ' + str(t))
+
+        V_plt = np.append(V.reshape(-1), V[0, :]).reshape((-1, 2))
+        ax.plot(V_plt[:, 0], V_plt[:, 1], color=line, alpha=alpha)
+        ax.scatter(V[:, 0], V[:, 1], color=fill,
+                edgecolors='black',
+                linewidth=2, s=50, alpha=alpha)
+        if with_txt:
+            for i, (x, y) in enumerate(V):
+                ax.text(x, y, str(i))
+        
+        fig.show()
 
     def distance_transform(self):
         """
@@ -82,18 +109,18 @@ class IterClosePoint(object):
         G_x = np.zeros((B_p.shape[0], B_p.shape[1]))
         G_y = np.zeros((B_p.shape[0], B_p.shape[1]))
 
-        for l in range(B_p.shape[0], 2):
+        for l in range(0, B_p.shape[0], 2):
             # Get point
-            point_x = B_p[l, 0]
-            point_y = B_p[l+1, 0]
+            point_x = int(B_p[l, 0])
+            point_y = int(B_p[l+1, 0])
 
             # Compute derivative for
             # both x and y direction
-            G_x[l, 0] = self.DT[point_x+1, point_y] - self.DT[point_x-1, point_y]
-            G_x[l+1, 0] = self.DT[point_x+1, point_y] - self.DT[point_x-1, point_y]
+            G_x[l, 0] = self.DT[point_y, point_x+1] - self.DT[point_y, point_x-1]
+            G_x[l+1, 0] = self.DT[point_y, point_x+1] - self.DT[point_y, point_x-1]
 
-            G_y[l, 0] = self.DT[point_x, point_y+1] - self.DT[point_x, point_y-1]
-            G_y[l+1, 0] = self.DT[point_x, point_y+1] - self.DT[point_x, point_y-1]
+            G_y[l, 0] = self.DT[point_y+1, point_x] - self.DT[point_y-1, point_x]
+            G_y[l+1, 0] = self.DT[point_y+1, point_x] - self.DT[point_y-1, point_x]
 
         return (G_x, G_y)
 
@@ -123,7 +150,12 @@ class IterClosePoint(object):
             B_p = np.dot(self.A, self.Psi)
 
             # Step2: ICP
-            tmp = self.ICP(B_p)
+            self.B = np.around(self.ICP(B_p))
+
+            B_plot = np.reshape(self.B, (65,2))
+
+            # Plot B
+            self.plot_shape(B_plot, iter)
 
             # Step3: LSA
             self.Psi = self.get_affine(self.A)
