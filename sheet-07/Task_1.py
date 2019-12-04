@@ -43,9 +43,9 @@ class IterClosePoint(object):
         self.img = img
         self.landmarks = landmarks
         self.iterations = iterations
+        self.Psi = None
         self.A = self.lands2A()
         self.B = np.array([landmarks.flatten()]).T
-        self.Psi = self.get_affine()
         self.DT = self.distance_transform()
         # display_image('', self.DT.astype(np.uint8))
 
@@ -116,25 +116,15 @@ class IterClosePoint(object):
         return np.around(CP)
 
     def fit(self):
-        B_plot = np.reshape(self.B, (65, 2))
+        # Visualize the initial points.
+        self.plot_lands(self.B, 'Initial Shape')
 
         # Plot B
         for iter in range(self.iterations):
             print('Iteration: {}/{}'.format(iter + 1, self.iterations))
 
-            # Step1: Compute psi
-            B_p = np.dot(self.A, self.Psi)
-
-            # Step2: ICP
-            self.B = self.ICP(B_p)
-
-            # Step3: LSA
-            self.Psi = self.get_affine()
-
-        # Visualize the landmark points
-        # using the psi transformation.
-        B_p = np.dot(self.A, self.Psi)
-        self.plot_lands(B_p)
+            # ICP
+            self.B = self.ICP(self.B)
 
     def get_affine(self):
         D, U, V_t = cv.SVDecomp(self.A)
@@ -143,18 +133,38 @@ class IterClosePoint(object):
         X = np.dot(V_t.T, Y)
         return X
 
-    def lands2A(self):
+    def make_transformation(self, plot=True):
+        # Transformation
+        self.Psi = self.get_affine()
+
+        if plot:
+            # Visualize the landmark points
+            # using the psi transformation.
+            A_stack = self.lands2A(stack=True)
+            B_p = np.dot(A_stack, self.Psi)
+            self.plot_lands(B_p, 'Shape after Psi transformation')
+
+    def lands2A(self, stack=True):
         length = self.landmarks.shape[0]
-        A = np.zeros((2 * length, 6 * length))
-        for idx_land in range(length):
-            x, y = self.landmarks[idx_land]
-            idx_row = idx_land * 2
-            idx_col = idx_land * 6
-            A[idx_row, idx_col:idx_col + 6] = [x, y, 0, 0, 1, 0]
-            A[idx_row + 1, idx_col:idx_col + 6] = [0, 0, x, y, 0, 1]
+        A = None
+        if not stack:
+            A = np.zeros((2 * length, 6 * length))
+            for idx_land in range(length):
+                x, y = self.landmarks[idx_land]
+                idx_row = idx_land * 2
+                idx_col = idx_land * 6
+                A[idx_row, idx_col:idx_col + 6] = [x, y, 0, 0, 1, 0]
+                A[idx_row + 1, idx_col:idx_col + 6] = [0, 0, x, y, 0, 1]
+        else:
+            A = np.zeros((2 * length, 6))
+            for idx_land in range(length):
+                x, y = self.landmarks[idx_land]
+                idx_row = idx_land * 2
+                A[idx_row, :] = [x, y, 0, 0, 1, 0]
+                A[idx_row + 1, :] = [0, 0, x, y, 0, 1]
         return A
 
-    def plot_lands(self, lands, fill='green', line='red', alpha=1, with_txt=False):
+    def plot_lands(self, lands, text, fill='green', line='red', alpha=1, with_txt=False):
         """ plots the snake onto a sub-plot
         :param V: point locations ( [ (x0, y0), (x1, y1), ... (xn, yn)]
         :param fill: point color
@@ -169,7 +179,7 @@ class IterClosePoint(object):
 
         ax.clear()
         ax.imshow(self.img, cmap='gray')
-        ax.set_title('Landmark points after psi transformation.')
+        ax.set_title(text)
 
         V_plt = np.append(lands2d.reshape(-1), lands2d[0, :]).reshape((-1, 2))
         ax.plot(V_plt[:, 0], V_plt[:, 1], color=line, alpha=alpha)
@@ -195,6 +205,7 @@ def task_1():
 
     model = IterClosePoint(img, landmarks, iterations)
     model.fit()
+    model.make_transformation(plot=True)
 
 
 if __name__ == '__main__':
