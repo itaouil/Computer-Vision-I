@@ -24,7 +24,16 @@ class PCA(object):
 
     def decomposition(self):
         self.eigvalues, self.eigvects = np.linalg.eig(np.dot(self.W, self.W.T))
-        print(self.eigvalues, self.eigvects)
+        # Sort eigenvalues ascendant
+        idxs = np.argsort(self.eigvalues)[::-1]
+        self.eigvalues = self.eigvalues[idxs]
+        self.eigvects = self.eigvects[:, idxs]
+
+    def fit(self, threshold=.9):
+        for k in range(self.eigvalues.shape[0]):
+            res = 0
+            if res > threshold:
+                return None
 
 
 def task_2():
