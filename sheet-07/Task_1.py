@@ -47,17 +47,16 @@ class IterClosePoint(object):
         self.B = np.array([landmarks.flatten()]).T
         self.Psi = self.get_affine()
         self.DT = self.distance_transform()
-        display_image('', self.DT.astype(np.uint8))
+        # display_image('', self.DT.astype(np.uint8))
 
     def distance_transform(self):
         """
           Compute distance transform.
         """
-        img_canny = cv.Canny(self.img, 40, 70)
-        display_image('', img_canny.astype(np.uint8))
+        img_canny = cv.Canny(self.img, 60, 70)
         img_canny = (255 - img_canny) // 255
 
-        return cv.distanceTransform(img_canny, cv.DIST_L1, 5)
+        return cv.distanceTransform(img_canny, cv.DIST_C, 5)
 
     def get_distances(self, B_p):
         """
@@ -82,28 +81,18 @@ class IterClosePoint(object):
         """
             Compute gradients
         """
-        G_x = np.zeros((B_p.shape[0], B_p.shape[1]))
-        G_y = np.zeros((B_p.shape[0], B_p.shape[1]))
+        G_x = np.ones((B_p.shape[0], B_p.shape[1]))
+        G_y = np.ones((B_p.shape[0], B_p.shape[1]))
 
         for l in range(0, B_p.shape[0], 2):
             # Get point
             point_x = int(B_p[l, 0])
             point_y = int(B_p[l + 1, 0])
 
-            if point_x >= 600 or point_y >= 800:
-                continue
-
-
             # Compute derivative for
             # both x and y direction
-            g_x = .5 * (self.DT[point_y, point_x + 1] - self.DT[point_y, point_x - 1])
-            g_y = .5 * (self.DT[point_y + 1, point_x] - self.DT[point_y - 1, point_x])
-
-            G_x[l, 0] = g_x
-            G_x[l + 1, 0] = 1
-
-            G_y[l, 0] = 1
-            G_y[l + 1, 0] = g_y
+            G_x[l, 0] = .5 * (self.DT[point_y, point_x + 1] - self.DT[point_y, point_x - 1])
+            G_y[l + 1, 0] = .5 * (self.DT[point_y + 1, point_x] - self.DT[point_y - 1, point_x])
 
         return G_x, G_y
 
@@ -130,7 +119,6 @@ class IterClosePoint(object):
         B_plot = np.reshape(self.B, (65, 2))
 
         # Plot B
-        self.plot_shape(B_plot, 0)
         for iter in range(self.iterations):
             print('Iteration: {}/{}'.format(iter + 1, self.iterations))
 
@@ -140,11 +128,13 @@ class IterClosePoint(object):
             # Step2: ICP
             self.B = self.ICP(B_p)
 
-            # Plot B
-            self.plot_shape(self.B, iter)
-
             # Step3: LSA
             self.Psi = self.get_affine()
+
+        # Visualize the landmark points
+        # using the psi transformation.
+        B_p = np.dot(self.A, self.Psi)
+        self.plot_lands(B_p)
 
     def get_affine(self):
         D, U, V_t = cv.SVDecomp(self.A)
@@ -164,9 +154,8 @@ class IterClosePoint(object):
             A[idx_row + 1, idx_col:idx_col + 6] = [0, 0, x, y, 0, 1]
         return A
 
-    def plot_shape(self, V, t, fill='green', line='red', alpha=1, with_txt=True):
+    def plot_lands(self, lands, fill='green', line='red', alpha=1, with_txt=False):
         """ plots the snake onto a sub-plot
-        :param ax: subplot (fig.add_subplot(abc))
         :param V: point locations ( [ (x0, y0), (x1, y1), ... (xn, yn)]
         :param fill: point color
         :param line: line color
@@ -174,22 +163,21 @@ class IterClosePoint(object):
         :param with_txt: if True plot numbers as well
         :return:
         """
-        V = np.reshape(V, (65, 2))
-        V
+        lands2d = np.reshape(lands, (65, 2))
         fig = plt.figure(figsize=(10, 10))
         ax = fig.add_subplot(111)
 
         ax.clear()
         ax.imshow(self.img, cmap='gray')
-        ax.set_title('frame ' + str(t))
+        ax.set_title('Landmark points after psi transformation.')
 
-        V_plt = np.append(V.reshape(-1), V[0, :]).reshape((-1, 2))
+        V_plt = np.append(lands2d.reshape(-1), lands2d[0, :]).reshape((-1, 2))
         ax.plot(V_plt[:, 0], V_plt[:, 1], color=line, alpha=alpha)
-        ax.scatter(V[:, 0], V[:, 1], color=fill,
+        ax.scatter(lands2d[:, 0], lands2d[:, 1], color=fill,
                    edgecolors='black',
                    linewidth=2, s=50, alpha=alpha)
         if with_txt:
-            for i, (x, y) in enumerate(V):
+            for i, (x, y) in enumerate(lands2d):
                 ax.text(x, y, str(i))
 
         fig.show()
