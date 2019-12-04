@@ -133,7 +133,7 @@ class IterClosePoint(object):
         X = np.dot(V_t.T, Y)
         return X
 
-    def make_transformation(self, plot=True):
+    def estimate_transf(self, plot=True):
         # Transformation
         self.Psi = self.get_affine()
 
@@ -173,7 +173,7 @@ class IterClosePoint(object):
         :param with_txt: if True plot numbers as well
         :return:
         """
-        lands2d = np.reshape(lands, (65, 2))
+        lands2d = np.reshape(lands, (lands.shape[0] // 2, 2))
         fig = plt.figure(figsize=(10, 10))
         ax = fig.add_subplot(111)
 
@@ -205,7 +205,7 @@ def task_1():
 
     model = IterClosePoint(img, landmarks, iterations)
     model.fit()
-    model.make_transformation(plot=True)
+    model.estimate_transf(plot=True)
 
 
 if __name__ == '__main__':
