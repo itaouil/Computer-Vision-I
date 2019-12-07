@@ -190,7 +190,7 @@ class IterClosePoint(object):
             for i, (x, y) in enumerate(lands2d):
                 ax.text(x, y, str(i))
 
-        fig.show()
+        plt.pause(5)
 
 
 def task_1():
