@@ -54,7 +54,7 @@ def plot_lands(img, lands, text, fill='green', line='red', alpha=1, with_txt=Fal
         for i, (x, y) in enumerate(lands2d):
             ax.text(x, y, str(i))
 
-    fig.show()
+    plt.pause(5)
 
 
 class IterClosePoint(object):
@@ -169,12 +169,40 @@ class IterClosePoint(object):
             A[idx_row + 1, :] = [0, 0, x, y, 0, 1]
         return A
 
+    def plot_lands(self, lands, text, fill='green', line='red', alpha=1, with_txt=False):
+        """ plots the snake onto a sub-plot
+        :param V: point locations ( [ (x0, y0), (x1, y1), ... (xn, yn)]
+        :param fill: point color
+        :param line: line color
+        :param alpha: [0 .. 1]
+        :param with_txt: if True plot numbers as well
+        :return:
+        """
+        lands2d = np.reshape(lands, (lands.shape[0] // 2, 2))
+        fig = plt.figure(figsize=(10, 10))
+        ax = fig.add_subplot(111)
+
+        ax.clear()
+        ax.imshow(self.img, cmap='gray')
+        ax.set_title(text)
+
+        V_plt = np.append(lands2d.reshape(-1), lands2d[0, :]).reshape((-1, 2))
+        ax.plot(V_plt[:, 0], V_plt[:, 1], color=line, alpha=alpha)
+        ax.scatter(lands2d[:, 0], lands2d[:, 1], color=fill,
+                   edgecolors='black',
+                   linewidth=2, s=50, alpha=alpha)
+        if with_txt:
+            for i, (x, y) in enumerate(lands2d):
+                ax.text(x, y, str(i))
+
+        plt.pause(5)
+
 
 def task_1():
     """
       Main.
     """
-    iterations = 5
+    iterations = 1
     img = cv.imread("./data/hand.jpg", 0)
     landmarks = read_landmarks('./data/hand_landmarks.txt')
 

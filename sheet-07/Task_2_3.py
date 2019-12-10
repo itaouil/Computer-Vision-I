@@ -1,5 +1,4 @@
 import numpy as np
-# import matplotlib
 import cv2 as cv
 from matplotlib import pyplot as plt
 
@@ -28,8 +27,8 @@ class PCA(object):
         self.eigvalues, self.eigvects = np.linalg.eig(np.dot(self.W, self.W.T))
         # Sort eigenvalues ascendant
         idxs = np.argsort(self.eigvalues)[::-1]
-        self.eigvalues = self.eigvalues[idxs]
-        self.eigvects = self.eigvects[:, idxs]
+        self.eigvalues = self.eigvalues[idxs].real
+        self.eigvects = self.eigvects[:, idxs].real
 
     def compute_k(self, threshold=0.9):
         # Compute sum of eigenvalues
@@ -44,32 +43,26 @@ class PCA(object):
 
             # Check if threshold is met
             quotient = sum_eigen_k / sum_eigen_values
-            if quotient > threshold:
+            quotient = np.around(quotient, decimals=1)
+            if quotient == threshold:
                 return k
 
         return len(self.eigvalues)
 
     def fit(self, k, weights):
-        weights *= 100
-        # Models
-        models = np.zeros((self.mean.shape[0], len(weights)))
+        # weights *= 100
 
-        # Iterate over weights
-        for idx, weight in enumerate(weights):
-            sum_ = np.array([np.sum(self.eigvects[:, :k], axis=1)]).T
-            rest = self.mean + sum_ * weight
-            rest_f = rest.flatten()
-            models[:, idx] = rest_f.real
+        # Copy mean
+        model = self.mean.copy()
 
-        # Wrap models pixels
-        models = np.around(models)
-
-        # Plot models
-        for k in range(models.shape[1]):
-            # Plot
-            self.plot_model(models[:, k], "Model {},{}".format(k + 1, models.shape[1]))
-
-        return models
+        # Add sum of weighted
+        # eigen vectors
+        for x in range(k):
+            eigvect = np.array([self.eigvects[:, x]]).T
+            model += eigvect * weights[x]
+        
+        # Plot model
+        self.plot_model(np.around(model), "Model with weights: {}, and k={}".format(weights, k))
 
     def plot_model(self, lands1d, text, fill='green', line='red', alpha=1, with_txt=False):
         """ plots the snake onto a sub-plot
@@ -82,11 +75,13 @@ class PCA(object):
         :return:
         """
         # Stack horizontally x and y
+        lands1d = lands1d.flatten()
         middle = lands1d.shape[0] // 2
         x_points = np.array([lands1d[:middle]]).T
         y_points = np.array([lands1d[middle:]]).T
         lands2d = np.hstack((x_points, y_points))
 
+        # Stacks mean horizontally x and y
         mean = self.mean.flatten()
         middle = mean.shape[0] // 2
         x_points = np.array([mean[:middle]]).T
@@ -112,21 +107,29 @@ class PCA(object):
                    edgecolors='black',
                    linewidth=2, s=50, alpha=alpha)
 
-        plt.pause(1)
+        plt.pause(7)
 
 
 def task_2():
+    # Read txt file and the image
     # file = '/Users/dailand10/Desktop/Computer-Vision-I/sheet-07/data/hands_aligned_train.txt'
-    # img = cv2.imread("/Users/dailand10/Desktop/Computer-Vision-I/sheet-07/data/hand.jpg", 0)
+    # img = cv.imread("/Users/dailand10/Desktop/Computer-Vision-I/sheet-07/data/hand.jpg", 0)
     file = './data/hands_aligned_train.txt.new'
     img = cv.imread("./data/hand.jpg", 0)
 
+    # PCA model
     model = PCA(file, img)
     model.compute_mean()
     model.sub_mean()
     model.decomposition()
-    k = model.compute_k()
-    model.fit(k, np.array([-0.4, -0.2, 0.0, 0.2, 0.4]))
+    
+    # Just used once to compute
+    # which K conserves 90% of the
+    # energy
+    # k = model.compute_k()
+
+    # Fit model with given weights
+    model.fit(5, np.array([-0.4, -0.2, 0.0, 0.2, 0.4]))
 
 
 def task_3():
