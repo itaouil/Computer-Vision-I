@@ -34,13 +34,10 @@ def display_image(window_name, img):
 
 
 def get_coefficients(x_input, x_mean, eigenfaces):
-    coeff = np.zeros((eigenfaces.shape[0], eigenfaces.shape[1]))
-    bundle = np.zeros((eigenfaces.shape[0], eigenfaces.shape[1]))
     x_diff = x_input - x_mean
-    for i in range(eigenfaces.shape[0]):
-        coeff[i] = x_diff * eigenfaces[i]
-        bundle[i] = x_diff * eigenfaces[i] ** 2
-    return coeff, bundle
+    coeffs = np.dot(x_diff, eigenfaces.T).reshape((1, eigenfaces.shape[0]))
+    bundle = coeffs.T * eigenfaces
+    return bundle
 
 
 def main():
@@ -72,18 +69,26 @@ def main():
 
     # Compute reconstruction error
     x_input = cv.imread('./data/exercise1/detect/face/obama.jpg', cv.IMREAD_GRAYSCALE)
-    # x_input = cv.imread('./data/exercise1/detect/other/cat.jpg', cv.IMREAD_GRAYSCALE)
+    # x_input = cv.imread('./data/exercise1/detect/other/monkey.jpg', cv.IMREAD_GRAYSCALE)
     x_input = cv.resize(x_input, (37, 50), interpolation=cv.INTER_AREA).flatten()
     x_mean = X_train.mean(axis=0)
 
-    K_coeff, K_bundle = get_coefficients(x_input, x_mean, eigenfaces)
-    x_coeff = np.sum(K_coeff, axis=0) + x_mean
+    K_bundle = get_coefficients(x_input, x_mean, eigenfaces)
+    x_coeff = (np.sum(K_bundle, axis=0) + x_mean)
     # Compute error between the input image
-    input_error = x_input - x_coeff
-    # display_image('x_coeff', input_error.reshape((h, w)).astype(np.uint8))
-    norm_error = np.sqrt(np.sum(input_error ** 2, axis=0))
-    print(norm_error)
+    input_error = (x_input - x_coeff)
+    print(input_error.mean())
+    norm_error = np.sqrt(np.sum(np.abs(input_error ** 2)))
 
+    # plot figure
+    fig, axs = plt.subplots(1, 4)
+    axs[0].imshow(x_input.reshape((h, w)))
+    axs[1].imshow(x_mean.reshape((h, w)))
+    axs[2].imshow(x_coeff.reshape((h, w)))
+    axs[3].imshow(input_error.reshape((h, w)))
+    # axs[0].set_xlabel('fig1')
+    fig.suptitle('Error: {}'.format(norm_error))
+    fig.show()
     # Perform face detection
     # TODO
 
