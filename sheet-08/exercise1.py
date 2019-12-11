@@ -3,11 +3,13 @@ import os
 import numpy as np
 from sklearn.datasets import fetch_lfw_people
 from sklearn.decomposition import PCA
+from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 import cv2 as cv
 import sklearn
 import random
 import matplotlib.pylab as plt
+from sklearn.neighbors import KNeighborsClassifier
 
 
 def plot_gallery(images, titles, h, w, n_row=2, n_col=5):
@@ -107,7 +109,8 @@ def main():
     # that permit to detect a face is around 45.
 
     x_input = cv.imread('./data/exercise1/detect/face/putin.jpg', cv.IMREAD_GRAYSCALE)
-    face_detect(eigenfaces, x_input, x_mean, h, w)
+    # TODO: remove comment
+    # face_detect(eigenfaces, x_input, x_mean, h, w)
 
     """
     Perform face detection
@@ -117,17 +120,29 @@ def main():
     img_faces = os.listdir(path_face)
     img_other = os.listdir(path_other)
 
-    for img_file in img_faces:
-        x_input = cv.imread(path_face + img_file, cv.IMREAD_GRAYSCALE)
-        face_detect(eigenfaces, x_input, x_mean, h, w)
-
-    for img_file in img_other:
-        x_input = cv.imread(path_other + img_file, cv.IMREAD_GRAYSCALE)
-        face_detect(eigenfaces, x_input, x_mean, h, w)
+    # TODO: remove comment
+    # for img_file in img_faces:
+    #     x_input = cv.imread(path_face + img_file, cv.IMREAD_GRAYSCALE)
+    #     face_detect(eigenfaces, x_input, x_mean, h, w)
+    #
+    # for img_file in img_other:
+    #     x_input = cv.imread(path_other + img_file, cv.IMREAD_GRAYSCALE)
+    #     face_detect(eigenfaces, x_input, x_mean, h, w)
 
     """
     Perform face recognition
     """
+
+    X_train_pca = pca.transform(X_train)
+    X_test_pca = pca.transform(X_test)
+
+    # Creation of KNeighborsClassifier and fitting
+    neigh = KNeighborsClassifier(n_neighbors=lfw.target_names.shape[0])
+    neigh.fit(X_train_pca, y_train)
+
+    # Predict and classify
+    y_pred = neigh.predict(X_test_pca)
+    print(classification_report(y_test, y_pred, target_names=lfw.target_names))
 
 
 if __name__ == '__main__':
