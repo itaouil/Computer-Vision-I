@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from sklearn.datasets import fetch_lfw_people
 from sklearn.decomposition import PCA
@@ -33,11 +35,37 @@ def display_image(window_name, img):
     cv.destroyAllWindows()
 
 
-def get_coefficients(x_input, x_mean, eigenfaces):
+def get_transformation(eigenfaces, x_input, x_mean):
     x_diff = x_input - x_mean
     coeffs = np.dot(x_diff, eigenfaces.T).reshape((1, eigenfaces.shape[0]))
     bundle = coeffs.T * eigenfaces
-    return bundle
+
+    return np.sum(bundle, axis=0) + x_mean
+
+
+def plot_recontruction_err(img1, img2, error, shape, type_img='none'):
+    fig, axs = plt.subplots(1, 2)
+    axs[0].imshow(img1.reshape(shape))
+    axs[1].imshow(img2.reshape(shape))
+    axs[0].set_xlabel('Input image')
+    axs[1].set_xlabel('Reconstructed image')
+    fig.suptitle('Detected {}\nReconstruction error: {:3.2f}'.format(type_img, error))
+    fig.show()
+
+
+def face_detect(eigenfaces, x_input, x_mean, h, w, threshold=45):
+    # Resizing of the image
+    x_input = cv.resize(x_input, (w, h), interpolation=cv.INTER_AREA).flatten()
+
+    # Get transformation
+    x_coeff = get_transformation(eigenfaces, x_input, x_mean)
+
+    # Compute error between the input image
+    norm_error = np.linalg.norm(x_input) - np.linalg.norm(x_coeff)
+
+    type_img = 'face' if norm_error < threshold else 'other'
+    # Plot images w/ error
+    plot_recontruction_err(x_input, x_coeff, norm_error, (h, w), type_img)
 
 
 def main():
@@ -57,43 +85,49 @@ def main():
 
     # Compute the PCA
     n_components = 100
-
     pca = PCA(n_components=n_components, svd_solver='randomized',
               whiten=True)
     pca.fit(X_train)
 
-    # Visualize Eigen Faces
-    eigenfaces = pca.components_
-    eigenface_titles = ["eigenface {}".format(i + 1) for i in range(eigenfaces.shape[0])]
-    # plot_gallery(eigenfaces, eigenface_titles, h, w)
-
-    # Compute reconstruction error
-    x_input = cv.imread('./data/exercise1/detect/face/obama.jpg', cv.IMREAD_GRAYSCALE)
-    # x_input = cv.imread('./data/exercise1/detect/other/monkey.jpg', cv.IMREAD_GRAYSCALE)
-    x_input = cv.resize(x_input, (37, 50), interpolation=cv.INTER_AREA).flatten()
+    # Compute mean from training data
     x_mean = X_train.mean(axis=0)
 
-    K_bundle = get_coefficients(x_input, x_mean, eigenfaces)
-    x_coeff = (np.sum(K_bundle, axis=0) + x_mean)
-    # Compute error between the input image
-    input_error = (x_input - x_coeff)
-    print(input_error.mean())
-    norm_error = np.sqrt(np.sum(np.abs(input_error ** 2)))
+    """
+    Visualize Eigen Faces
+    """
+    eigenfaces = pca.components_
+    eigenface_titles = ["eigenface {}".format(i + 1) for i in range(eigenfaces.shape[0])]
+    # TODO: remove comment
+    # plot_gallery(eigenfaces, eigenface_titles, h, w)
 
-    # plot figure
-    fig, axs = plt.subplots(1, 4)
-    axs[0].imshow(x_input.reshape((h, w)))
-    axs[1].imshow(x_mean.reshape((h, w)))
-    axs[2].imshow(x_coeff.reshape((h, w)))
-    axs[3].imshow(input_error.reshape((h, w)))
-    # axs[0].set_xlabel('fig1')
-    fig.suptitle('Error: {}'.format(norm_error))
-    fig.show()
-    # Perform face detection
-    # TODO
+    """
+    Find the reconstruction error
+    """
+    # A threshold for good reconstruction error
+    # that permit to detect a face is around 45.
 
-    # Perform face recognition
-    # TODO
+    x_input = cv.imread('./data/exercise1/detect/face/putin.jpg', cv.IMREAD_GRAYSCALE)
+    face_detect(eigenfaces, x_input, x_mean, h, w)
+
+    """
+    Perform face detection
+    """
+    path_face = './data/exercise1/detect/face/'
+    path_other = './data/exercise1/detect/other/'
+    img_faces = os.listdir(path_face)
+    img_other = os.listdir(path_other)
+
+    for img_file in img_faces:
+        x_input = cv.imread(path_face + img_file, cv.IMREAD_GRAYSCALE)
+        face_detect(eigenfaces, x_input, x_mean, h, w)
+
+    for img_file in img_other:
+        x_input = cv.imread(path_other + img_file, cv.IMREAD_GRAYSCALE)
+        face_detect(eigenfaces, x_input, x_mean, h, w)
+
+    """
+    Perform face recognition
+    """
 
 
 if __name__ == '__main__':
