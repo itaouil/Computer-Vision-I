@@ -99,8 +99,7 @@ def main():
     """
     eigenfaces = pca.components_
     eigenface_titles = ["eigenface {}".format(i + 1) for i in range(eigenfaces.shape[0])]
-    # TODO: remove comment
-    # plot_gallery(eigenfaces, eigenface_titles, h, w)
+    plot_gallery(eigenfaces, eigenface_titles, h, w)
 
     """
     Find the reconstruction error
@@ -109,8 +108,7 @@ def main():
     # that permit to detect a face is around 45.
 
     x_input = cv.imread('./data/exercise1/detect/face/putin.jpg', cv.IMREAD_GRAYSCALE)
-    # TODO: remove comment
-    # face_detect(eigenfaces, x_input, x_mean, h, w)
+    face_detect(eigenfaces, x_input, x_mean, h, w)
 
     """
     Perform face detection
@@ -120,14 +118,13 @@ def main():
     img_faces = os.listdir(path_face)
     img_other = os.listdir(path_other)
 
-    # TODO: remove comment
-    # for img_file in img_faces:
-    #     x_input = cv.imread(path_face + img_file, cv.IMREAD_GRAYSCALE)
-    #     face_detect(eigenfaces, x_input, x_mean, h, w)
-    #
-    # for img_file in img_other:
-    #     x_input = cv.imread(path_other + img_file, cv.IMREAD_GRAYSCALE)
-    #     face_detect(eigenfaces, x_input, x_mean, h, w)
+    for img_file in img_faces:
+        x_input = cv.imread(path_face + img_file, cv.IMREAD_GRAYSCALE)
+        face_detect(eigenfaces, x_input, x_mean, h, w)
+
+    for img_file in img_other:
+        x_input = cv.imread(path_other + img_file, cv.IMREAD_GRAYSCALE)
+        face_detect(eigenfaces, x_input, x_mean, h, w)
 
     """
     Perform face recognition
