@@ -66,7 +66,7 @@ def harris_detector(M):
             responses[y, x] = np.linalg.det(M_temp) - 0.04 * np.trace(M_temp) ** 2
 
     # Threshold responses
-    responses = np.where(responses > 230, 255, 0)
+    responses = np.where(responses > 43000, 255, 0)
 
     # responses = img_mean_shift(responses)
 
