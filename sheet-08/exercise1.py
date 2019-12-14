@@ -6,7 +6,6 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 import cv2 as cv
-import sklearn
 import random
 import matplotlib.pylab as plt
 from sklearn.neighbors import KNeighborsClassifier
