@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pylab as plt
 from sklearn.metrics.pairwise import euclidean_distances
 
+
 def display_image(window_name, img):
     """
         Displays image with given window name.
@@ -13,10 +14,11 @@ def display_image(window_name, img):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+
 def main():
     # Load the images
-    img1 = cv2.imread("/Users/dailand10/Desktop/Computer-Vision-I/sheet-08/data/exercise3/mountain1.png", 0)
-    img2 = cv2.imread("/Users/dailand10/Desktop/Computer-Vision-I/sheet-08/data/exercise3/mountain2.png", 0)
+    img1 = cv2.imread("./data/exercise3/mountain1.png", 0)
+    img2 = cv2.imread("./data/exercise3/mountain2.png", 0)
 
     # Extract descriptor for both images
     sift = cv2.xfeatures2d.SIFT_create()
@@ -32,7 +34,7 @@ def main():
     # Find matches and get sort idxs
     distances = euclidean_distances(descs1, descs2)
     idx_sort = np.argsort(distances, axis=1)
-    
+
     # Create our matches list
     good_matches = []
     for y in range(distances.shape[0]):
@@ -50,6 +52,7 @@ def main():
     # Draw Matches
     matching_img = cv2.drawMatchesKnn(img1, kps1, img2, kps2, good_matches, None, flags=2)
     display_image("Matches", matching_img)
+
 
 if __name__ == '__main__':
     main()
