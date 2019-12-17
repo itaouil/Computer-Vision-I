@@ -69,7 +69,14 @@ class OpticalFlow:
     # function for converting flow map to to BGR image for visualisation
     # return bgr image
     def flow_map_to_bgr(self, flow):
-        flow_bgr = None
+        flow_hsv = np.zeros((flow.shape[0], flow.shape[1], 3), dtype=np.uint8)
+        flow_hsv[:, :, 1] = 255
+
+        mag, ang = cv.cartToPolar(flow[:, 0], flow[:, 1])
+        flow_hsv[..., 0] = ang * 180 / np.pi / 2
+        flow_hsv[..., 2] = cv.normalize(mag, None, 0, 255, cv.NORM_MINMAX)
+
+        flow_bgr = cv.cvtColor(flow_hsv, cv.COLOR_HSV2BGR)
 
         return flow_bgr
 
@@ -136,16 +143,16 @@ class OpticalFlow:
         for y in range(size[0]):
             for x in range(size[1]):
                 # U and V error
-                num_aae = (groundtruth_flow[y,x,0] * estimated_flow[y,x,0] + 
-                           groundtruth_flow[y,x,1] * estimated_flow[y,x,1] + 
+                num_aae = (groundtruth_flow[y, x, 0] * estimated_flow[y, x, 0] +
+                           groundtruth_flow[y, x, 1] * estimated_flow[y, x, 1] +
                            1)
 
-                den_aae = np.sqrt((groundtruth_flow[y,x,0] ** 2 + groundtruth_flow[y,x,1] ** 2 + 1) *
-                                  (estimated_flow[y,x,0] ** 2 + estimated_flow[y,x,1] ** 2 + 1))
+                den_aae = np.sqrt((groundtruth_flow[y, x, 0] ** 2 + groundtruth_flow[y, x, 1] ** 2 + 1) *
+                                  (estimated_flow[y, x, 0] ** 2 + estimated_flow[y, x, 1] ** 2 + 1))
 
                 # Populate AAE per point
-                aae_per_point[y,x] = np.arccos(num_aae / den_aae)
-        
+                aae_per_point[y, x] = np.arccos(num_aae / den_aae)
+
         # Compute AAE (average)
         num = aae_per_point.sum()
         den = aae_per_point.size
@@ -156,8 +163,8 @@ class OpticalFlow:
 
 if __name__ == "__main__":
 
-    # path = "./"
-    path = "/Users/dailand10/Desktop/Computer-Vision-I/sheet-09/"
+    path = "./"
+    # path = "/Users/dailand10/Desktop/Computer-Vision-I/sheet-09/"
 
     data_list = [
         path + 'data/frame_0001.png',
@@ -198,6 +205,8 @@ if __name__ == "__main__":
         fig.add_subplot(2, 3, 2)
         plt.imshow(flow_lucas_kanade_bgr)
         fig.add_subplot(2, 3, 3)
+        plt.show()
+
         plt.imshow(aae_lucas_kanade_per_point)
         fig.add_subplot(2, 3, 4)
         plt.imshow(flow_bgr_gt)
