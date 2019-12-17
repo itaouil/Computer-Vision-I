@@ -34,6 +34,10 @@ class OpticalFlow:
         self.prev = None
         self.next = None
 
+        # Padding related vars
+        self.borderType = cv.BORDER_CONSTANT
+        self.padding = self.WINDOW_SIZE[0] // 2
+
     def next_frame(self, img):
         self.prev = self.next
         self.next = img
@@ -49,7 +53,40 @@ class OpticalFlow:
         self.Iy = cv.Sobel(frames[0], cv.CV_32F, 0, 1, 3)
         self.It = frames[1]-frames[0]
 
+        # Pad image values
+        top = self.padding
+        bottom = self.padding
+        left = self.padding
+        right = self.padding
+
+        # Pad images and gradients
+        self.prev = self.pad(self.prev, top, bottom, left, right)
+        self.next = self.pad(self.next, top, bottom, left, right)
+        self.Ix = self.pad(self.Ix, top, bottom, left, right)
+        self.Iy = self.pad(self.Ix, top, bottom, left, right)
+        self.It = self.pad(self.Ix, top, bottom, left, right)
+
         return True
+    
+    def pad(self, img, top, bottom, left, right):
+        """
+            Pad image.
+        """
+        return cv.copyMakeBorder(self.prev,
+                                 top, 
+                                 bottom, 
+                                 left, 
+                                 right, 
+                                 self.borderType, 
+                                 None, 
+                                 0)
+
+    def SVD(self, M, R):
+        D, U, V_t = cv.SVDecomp(M)
+        B_p = np.dot(U.T, R)
+        Y = B_p / (D + 0.0001)
+        X = np.dot(V_t.T, Y)
+        return X
 
     #***********************************************************************************
     # function for converting flow map to to BGR image for visualisation
@@ -63,7 +100,37 @@ class OpticalFlow:
     # implement Lucas-Kanade Optical Flow 
     # returns the Optical flow based on the Lucas-Kanade algorithm and visualisation result
     def Lucas_Kanade_flow(self):
-        flow = None
+        # Flow matrix
+        flow = np.zeros((self.prev.shape[0], self.prev.shape[1], 2), dtype=np.float32)
+
+        # Iterate over pixels
+        for y in range(self.padding, self.prev.shape[0]):
+            for x in range(self.padding, self.prev.shape[1]):
+                # Matrix A
+                A = np.zeros((self.WINDOW_SIZE[0], 2), dtype=np.float32)
+
+                # Matrix B
+                B = np.zeros((self.WINDOW_SIZE[0], 1), dtype=np.float32)
+
+                # Populate A
+                count = 0
+                for i in range(-12, 13):
+                    for j in range(-12, 13):
+                        A[count, :] = [self.Ix[y + i, x + j], self.Iy[y + i, x + j]]
+                        B[count, :] = self.It[y + i, x + j]
+                
+                # Compute moment matrix
+                M = A.T @ A
+
+                # Compute right hand side matrix
+                R = -(A.T @ B)
+
+                # Compute SVD to retrieve (u,v)
+                motion = self.SVD(M, R)
+
+                # Store motion in flow
+                flow[y-self.padding, x-self.padding] = motion.flatten()
+                
 
         flow_bgr = self.flow_map_to_bgr(flow)
         return flow, flow_bgr
