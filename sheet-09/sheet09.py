@@ -37,7 +37,6 @@ class OpticalFlow:
 
         # Padding related vars
         self.borderType = cv.BORDER_CONSTANT
-        self.padding = self.WINDOW_SIZE[0] // 2
 
     def next_frame(self, img):
         self.prev = self.next
@@ -78,7 +77,6 @@ class OpticalFlow:
     # implement Lucas-Kanade Optical Flow
     # returns the Optical flow based on the Lucas-Kanade algorithm and visualisation result
     def Lucas_Kanade_flow(self):
-        k_area = self.WINDOW_SIZE[0] ** 2
         kernel = np.ones((self.WINDOW_SIZE[0], self.WINDOW_SIZE[0]))
 
         # Flow matrix
@@ -128,8 +126,30 @@ class OpticalFlow:
     # calculate the angular error here
     # return average angular error and per point error map
     def calculate_angular_error(self, estimated_flow, groundtruth_flow):
-        aae = None
-        aae_per_point = None
+        # Size of flow matrix
+        size = estimated_flow.shape
+
+        # AAE for each pixel
+        aae_per_point = np.zeros((size[0], size[1]))
+
+        # Compute per point
+        for y in range(size[0]):
+            for x in range(size[1]):
+                # U and V error
+                num_aae = (groundtruth_flow[y,x,0] * estimated_flow[y,x,0] + 
+                           groundtruth_flow[y,x,1] * estimated_flow[y,x,1] + 
+                           1)
+
+                den_aae = np.sqrt((groundtruth_flow[y,x,0] ** 2 + groundtruth_flow[y,x,1] ** 2 + 1) *
+                                  (estimated_flow[y,x,0] ** 2 + estimated_flow[y,x,1] ** 2 + 1))
+
+                # Populate AAE per point
+                aae_per_point[y,x] = np.arccos(num_aae / den_aae)
+        
+        # Compute AAE (average)
+        num = aae_per_point.sum()
+        den = aae_per_point.size
+        aae = num / den
 
         return aae, aae_per_point
 
@@ -137,8 +157,7 @@ class OpticalFlow:
 if __name__ == "__main__":
 
     # path = "./"
-    # path = "/Users/dailand10/Desktop/Computer-Vision-I/sheet-09/"
-    path = "./"
+    path = "/Users/dailand10/Desktop/Computer-Vision-I/sheet-09/"
 
     data_list = [
         path + 'data/frame_0001.png',
@@ -148,7 +167,8 @@ if __name__ == "__main__":
 
     gt_list = [
         path + 'data/frame_0001.flo',
-         path + 'data/frame_0007.flo',
+        path + 'data/frame_0002.flo',
+        path + 'data/frame_0007.flo',
     ]
 
     Op = OpticalFlow()
