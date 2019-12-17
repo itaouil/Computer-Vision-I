@@ -89,16 +89,19 @@ class OpticalFlow:
 
 if __name__ == "__main__":
 
+    # path = "./"
+    path = "/Users/dailand10/Desktop/Computer-Vision-I/sheet-09/"
+
     data_list = [
-        'data/frame_0001.png',
-        'data/frame_0002.png',
-        'data/frame_0007.png',
+        path + 'data/frame_0001.png',
+        path + 'data/frame_0002.png',
+        path + 'data/frame_0007.png',
     ]
 
     gt_list = [
-        './data/frame_0001.flo',
-        './data/frame_0002.flo',
-        './data/frame_0007.flo',
+        path + 'data/frame_0001.flo',
+        path + 'data/frame_0002.flo',
+        path + 'data/frame_0007.flo',
     ]
 
     Op = OpticalFlow()
