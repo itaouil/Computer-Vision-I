@@ -6,27 +6,28 @@ import matplotlib.pyplot as plt
 
 
 def load_FLO_file(filename):
-    assert os.path.isfile(filename), 'file does not exist: ' + filename   
-    flo_file = open(filename,'rb')
+    assert os.path.isfile(filename), 'file does not exist: ' + filename
+    flo_file = open(filename, 'rb')
     magic = np.fromfile(flo_file, np.float32, count=1)
-    assert magic == 202021.25,  'Magic number incorrect. .flo file is invalid'
+    assert magic == 202021.25, 'Magic number incorrect. .flo file is invalid'
     w = np.fromfile(flo_file, np.int32, count=1)
     h = np.fromfile(flo_file, np.int32, count=1)
-    data = np.fromfile(flo_file, np.float32, count=2*w[0]*h[0])
+    data = np.fromfile(flo_file, np.float32, count=2 * w[0] * h[0])
     flow = np.resize(data, (int(h[0]), int(w[0]), 2))
     flo_file.close()
     return flow
 
+
 class OpticalFlow:
     def __init__(self):
         # Parameters for Lucas_Kanade_flow()
-        self.EIGEN_THRESHOLD = 0.01 # use as threshold for determining if the optical flow is valid when performing Lucas-Kanade
-        self.WINDOW_SIZE = [25, 25] # the number of points taken in the neighborhood of each pixel
+        self.EIGEN_THRESHOLD = 0.01  # use as threshold for determining if the optical flow is valid when performing Lucas-Kanade
+        self.WINDOW_SIZE = [25, 25]  # the number of points taken in the neighborhood of each pixel
 
         # Parameters for Horn_Schunck_flow()
-        self.EPSILON= 0.002 # the stopping criterion for the difference when performing the Horn-Schuck algorithm
-        self.MAX_ITERS = 1000 # maximum number of iterations allowed until convergence of the Horn-Schuck algorithm
-        self.ALPHA = 1.0 # smoothness term
+        self.EPSILON = 0.002  # the stopping criterion for the difference when performing the Horn-Schuck algorithm
+        self.MAX_ITERS = 1000  # maximum number of iterations allowed until convergence of the Horn-Schuck algorithm
+        self.ALPHA = 1.0  # smoothness term
 
         # Parameter for flow_map_to_bgr()
         self.UNKNOWN_FLOW_THRESH = 1000
@@ -48,47 +49,24 @@ class OpticalFlow:
         frames = np.float32(np.array([self.prev, self.next]))
         frames /= 255.0
 
-        #calculate image gradient
+        # calculate image gradient
         self.Ix = cv.Sobel(frames[0], cv.CV_32F, 1, 0, 3)
         self.Iy = cv.Sobel(frames[0], cv.CV_32F, 0, 1, 3)
-        self.It = frames[1]-frames[0]
-
-        # Pad image values
-        top = self.padding
-        bottom = self.padding
-        left = self.padding
-        right = self.padding
-
-        # Pad images and gradients
-        self.prev = self.pad(self.prev, top, bottom, left, right)
-        self.next = self.pad(self.next, top, bottom, left, right)
-        self.Ix = self.pad(self.Ix, top, bottom, left, right)
-        self.Iy = self.pad(self.Ix, top, bottom, left, right)
-        self.It = self.pad(self.Ix, top, bottom, left, right)
+        self.It = frames[1] - frames[0]
 
         return True
-    
-    def pad(self, img, top, bottom, left, right):
-        """
-            Pad image.
-        """
-        return cv.copyMakeBorder(self.prev,
-                                 top, 
-                                 bottom, 
-                                 left, 
-                                 right, 
-                                 self.borderType, 
-                                 None, 
-                                 0)
 
     def SVD(self, M, R):
         D, U, V_t = cv.SVDecomp(M)
         B_p = np.dot(U.T, R)
-        Y = B_p / (D + 0.0001)
+        if (D == 0).any():
+            print(M)
+            print(D)
+        Y = B_p / D
         X = np.dot(V_t.T, Y)
         return X
 
-    #***********************************************************************************
+    # ***********************************************************************************
     # function for converting flow map to to BGR image for visualisation
     # return bgr image
     def flow_map_to_bgr(self, flow):
@@ -96,47 +74,49 @@ class OpticalFlow:
 
         return flow_bgr
 
-    #***********************************************************************************
-    # implement Lucas-Kanade Optical Flow 
+    # ***********************************************************************************
+    # implement Lucas-Kanade Optical Flow
     # returns the Optical flow based on the Lucas-Kanade algorithm and visualisation result
     def Lucas_Kanade_flow(self):
+        k_area = self.WINDOW_SIZE[0] ** 2
+        kernel = np.ones((self.WINDOW_SIZE[0], self.WINDOW_SIZE[0]))
+
         # Flow matrix
         flow = np.zeros((self.prev.shape[0], self.prev.shape[1], 2), dtype=np.float32)
 
+        I_xx = cv.filter2D(self.Ix ** 2, -1, kernel, self.borderType)
+        I_yy = cv.filter2D(self.Iy ** 2, -1, kernel, self.borderType)
+        I_yx = cv.filter2D(self.Ix * self.Iy, -1, kernel, self.borderType)
+        I_tx = cv.filter2D(self.Ix * self.It, -1, kernel, self.borderType)
+        I_ty = cv.filter2D(self.Iy * self.It, -1, kernel, self.borderType)
+
         # Iterate over pixels
-        for y in range(self.padding, self.prev.shape[0]):
-            for x in range(self.padding, self.prev.shape[1]):
-                # Matrix A
-                A = np.zeros((self.WINDOW_SIZE[0], 2), dtype=np.float32)
-
-                # Matrix B
-                B = np.zeros((self.WINDOW_SIZE[0], 1), dtype=np.float32)
-
-                # Populate A
-                count = 0
-                for i in range(-12, 13):
-                    for j in range(-12, 13):
-                        A[count, :] = [self.Ix[y + i, x + j], self.Iy[y + i, x + j]]
-                        B[count, :] = self.It[y + i, x + j]
-                
+        for y in range(self.prev.shape[0]):
+            print(y)
+            for x in range(self.prev.shape[1]):
                 # Compute moment matrix
-                M = A.T @ A
+                M = np.array([
+                    [I_xx[y, x], I_yx[y, x]],
+                    [I_yx[y, x], I_yy[y, x]],
+                ])
 
                 # Compute right hand side matrix
-                R = -(A.T @ B)
+                R = np.array([
+                    [I_tx[y, x]],
+                    [I_ty[y, x]]
+                ])
 
                 # Compute SVD to retrieve (u,v)
-                motion = self.SVD(M, R)
+                motion = self.SVD(M, -R)
 
                 # Store motion in flow
-                flow[y-self.padding, x-self.padding] = motion.flatten()
-                
+                flow[y, x] = motion.flatten()
 
         flow_bgr = self.flow_map_to_bgr(flow)
         return flow, flow_bgr
 
-    #***********************************************************************************
-    # implement Horn-Schunck Optical Flow 
+    # ***********************************************************************************
+    # implement Horn-Schunck Optical Flow
     # returns the Optical flow based on the Horn-Schunck algorithm and visualisation result
     def Horn_Schunck_flow(self):
         flow = None
@@ -144,8 +124,8 @@ class OpticalFlow:
         flow_bgr = self.flow_map_to_bgr(flow)
         return flow, flow_bgr
 
-    #***********************************************************************************
-    #calculate the angular error here
+    # ***********************************************************************************
+    # calculate the angular error here
     # return average angular error and per point error map
     def calculate_angular_error(self, estimated_flow, groundtruth_flow):
         aae = None
@@ -157,7 +137,8 @@ class OpticalFlow:
 if __name__ == "__main__":
 
     # path = "./"
-    path = "/Users/dailand10/Desktop/Computer-Vision-I/sheet-09/"
+    # path = "/Users/dailand10/Desktop/Computer-Vision-I/sheet-09/"
+    path = "./"
 
     data_list = [
         path + 'data/frame_0001.png',
@@ -167,25 +148,25 @@ if __name__ == "__main__":
 
     gt_list = [
         path + 'data/frame_0001.flo',
-        path + 'data/frame_0002.flo',
-        path + 'data/frame_0007.flo',
+         path + 'data/frame_0007.flo',
     ]
 
     Op = OpticalFlow()
-    
+
     for (i, (frame_filename, gt_filemane)) in enumerate(zip(data_list, gt_list)):
         groundtruth_flow = load_FLO_file(gt_filemane)
+        groundtruth_flow_n = load_FLO_file(gt_list[0])
         img = cv.cvtColor(cv.imread(frame_filename), cv.COLOR_BGR2GRAY)
         if not Op.next_frame(img):
             continue
 
         flow_lucas_kanade, flow_lucas_kanade_bgr = Op.Lucas_Kanade_flow()
         aae_lucas_kanade, aae_lucas_kanade_per_point = Op.calculate_angular_error(flow_lucas_kanade, groundtruth_flow)
-        print('Average Angular error for Luacas-Kanade Optical Flow: %.4f' %(aae_lucas_kanade))
+        print('Average Angular error for Luacas-Kanade Optical Flow: %.4f' % (aae_lucas_kanade))
 
         flow_horn_schunck, flow_horn_schunck_bgr = Op.Horn_Schunck_flow()
-        aae_horn_schunk, aae_horn_schunk_per_point = Op.calculate_angular_error(flow_horn_schunck, groundtruth_flow)        
-        print('Average Angular error for Horn-Schunck Optical Flow: %.4f' %(aae_horn_schunk))   
+        aae_horn_schunk, aae_horn_schunk_per_point = Op.calculate_angular_error(flow_horn_schunck, groundtruth_flow)
+        print('Average Angular error for Horn-Schunck Optical Flow: %.4f' % (aae_horn_schunk))
 
         flow_bgr_gt = Op.flow_map_to_bgr(groundtruth_flow)
 
@@ -206,4 +187,4 @@ if __name__ == "__main__":
         plt.imshow(aae_horn_schunk_per_point)
         plt.show()
 
-        print("*"*20)
+        print("*" * 20)
