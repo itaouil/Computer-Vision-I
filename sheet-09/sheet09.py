@@ -108,7 +108,7 @@ class OpticalFlow:
 
         # Iterate over pixels
         for y in range(self.prev.shape[0]):
-            print(y)
+            print('Lucas_Kanade_flow iteration ({})'.format(y))
             for x in range(self.prev.shape[1]):
                 # Compute moment matrix
                 M = np.array([
@@ -178,21 +178,13 @@ class OpticalFlow:
             mtx_v_t_1 = up_mtx_v - num_v_update / den_update
 
             n_iter += 1
-            print('Iteration ({})'.format(n_iter))
-        
-        # # Populate flow matrix
-        # for y in range(self.prev.shape[0]):
-        #     for x in range(self.prev.shape[1]):
-        #         flow[y,x,:] = [u[y,x], v[y,x]]
+            print('Horn_Schunck_flow iteration ({})'.format(n_iter))
         
         # Flow matrix stack
         flow = np.dstack((mtx_u_t_1, mtx_v_t_1))
 
         # Compute BGR image from optical flow
         flow_bgr = self.flow_map_to_bgr(flow)
-
-        # Display image
-        display_image('', flow_bgr)
 
         return flow, flow_bgr
 
@@ -220,6 +212,7 @@ class OpticalFlow:
 
         # Compute per point
         for y in range(size[0]):
+            print('AAE computation iteration ({})'.format(y))
             for x in range(size[1]):
                 # U and V error
                 num_aae = (groundtruth_flow[y, x, 0] * estimated_flow[y, x, 0] +
@@ -266,9 +259,9 @@ if __name__ == "__main__":
         if not Op.next_frame(img):
             continue
 
-        # flow_lucas_kanade, flow_lucas_kanade_bgr = Op.Lucas_Kanade_flow()
-        # aae_lucas_kanade, aae_lucas_kanade_per_point = Op.calculate_angular_error(flow_lucas_kanade, groundtruth_flow)
-        # print('Average Angular error for Luacas-Kanade Optical Flow: %.4f' % (aae_lucas_kanade))
+        flow_lucas_kanade, flow_lucas_kanade_bgr = Op.Lucas_Kanade_flow()
+        aae_lucas_kanade, aae_lucas_kanade_per_point = Op.calculate_angular_error(flow_lucas_kanade, groundtruth_flow)
+        print('Average Angular error for Luacas-Kanade Optical Flow: %.4f' % (aae_lucas_kanade))
 
         flow_horn_schunck, flow_horn_schunck_bgr = Op.Horn_Schunck_flow()
         aae_horn_schunk, aae_horn_schunk_per_point = Op.calculate_angular_error(flow_horn_schunck, groundtruth_flow)
@@ -276,7 +269,7 @@ if __name__ == "__main__":
 
         flow_bgr_gt = Op.flow_map_to_bgr(groundtruth_flow)
 
-        fig = plt.figure(figsize=(img.shape))
+        fig = plt.figure(figsize=(8, 8))
 
         # Display
         fig.add_subplot(2, 3, 1)
