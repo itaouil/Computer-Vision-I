@@ -162,7 +162,7 @@ class OpticalFlow:
 
             # Compute Laplacian update
             up_mtx_u = mtx_u_t + cv.filter2D(mtx_u_t, -1, kernel, self.borderType)
-            up_mtx_v = mtx_u_t + cv.filter2D(mtx_u_t, -1, kernel, self.borderType)
+            up_mtx_v = mtx_v_t + cv.filter2D(mtx_v_t, -1, kernel, self.borderType)
 
             # Update denominator
             # in common for both
@@ -180,23 +180,23 @@ class OpticalFlow:
             n_iter += 1
             print('Iteration ({})'.format(n_iter))
         
-        # Populate flow matrix
-        for y in range(self.prev.shape[0]):
-            for x in range(self.prev.shape[1]):
-                flow[y,x,:] = [u[y,x], v[y,x]]
+        # # Populate flow matrix
+        # for y in range(self.prev.shape[0]):
+        #     for x in range(self.prev.shape[1]):
+        #         flow[y,x,:] = [u[y,x], v[y,x]]
         
         # Flow matrix stack
-        flow_stack = np.dstack((mtx_u_t_1, mtx_v_t_1))
+        flow = np.dstack((mtx_u_t_1, mtx_v_t_1))
 
         # Compute BGR image from optical flow
-        flow_bgr = self.flow_map_to_bgr(flow_stack)
+        flow_bgr = self.flow_map_to_bgr(flow)
 
         # Display image
         display_image('', flow_bgr)
 
         return flow, flow_bgr
 
-    def l2_norm_error(self, mtx_u_diff, mtx_v_diff, n_iter, threshold=0.0002):
+    def l2_norm_error(self, mtx_u_diff, mtx_v_diff, n_iter, threshold=0.002):
         if n_iter != 0:
             # Differences sum
             sum_diff = np.abs(mtx_u_diff) + np.abs(mtx_v_diff)
