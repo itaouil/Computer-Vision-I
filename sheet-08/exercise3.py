@@ -17,8 +17,8 @@ def display_image(window_name, img):
 
 def main():
     # Load the images
-    img1 = cv2.imread("/Users/dailand10/Desktop/Computer-Vision-I/sheet-08/data/exercise3/mountain1.png", 0)
-    img2 = cv2.imread("/Users/dailand10/Desktop/Computer-Vision-I/sheet-08/data/exercise3/mountain2.png", 0)
+    img1 = cv2.imread("./data/exercise3/mountain1.png", 0)
+    img2 = cv2.imread("./data/exercise3/mountain2.png", 0)
 
     # Extract descriptor for both images
     sift = cv2.xfeatures2d.SIFT_create()

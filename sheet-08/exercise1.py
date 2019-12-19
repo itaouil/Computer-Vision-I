@@ -6,10 +6,12 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 import cv2 as cv
-import sklearn
 import random
 import matplotlib.pylab as plt
 from sklearn.neighbors import KNeighborsClassifier
+
+TYPE_FACE = 'face'
+TYPE_OTHER = 'other'
 
 
 def plot_gallery(images, titles, h, w, n_row=2, n_col=5):
@@ -55,7 +57,7 @@ def plot_recontruction_err(img1, img2, error, shape, type_img='none'):
     fig.show()
 
 
-def face_detect(eigenfaces, x_input, x_mean, h, w, threshold=45):
+def face_detect(eigenfaces, x_input, x_mean, h, w, type_real, threshold=45):
     # Resizing of the image
     x_input = cv.resize(x_input, (w, h), interpolation=cv.INTER_AREA).flatten()
 
@@ -65,9 +67,11 @@ def face_detect(eigenfaces, x_input, x_mean, h, w, threshold=45):
     # Compute error between the input image
     norm_error = np.linalg.norm(x_input) - np.linalg.norm(x_coeff)
 
-    type_img = 'face' if norm_error < threshold else 'other'
+    type_detect = TYPE_FACE if norm_error < threshold else TYPE_OTHER
     # Plot images w/ error
-    plot_recontruction_err(x_input, x_coeff, norm_error, (h, w), type_img)
+    plot_recontruction_err(x_input, x_coeff, norm_error, (h, w), type_detect)
+
+    return 1 if type_detect == type_real else 0
 
 
 def main():
@@ -108,11 +112,13 @@ def main():
     # that permit to detect a face is around 45.
 
     x_input = cv.imread('./data/exercise1/detect/face/putin.jpg', cv.IMREAD_GRAYSCALE)
-    face_detect(eigenfaces, x_input, x_mean, h, w)
+    face_detect(eigenfaces, x_input, x_mean, h, w, TYPE_FACE)
 
     """
     Perform face detection
     """
+    corrects = 0
+    num_imgs = 0
     path_face = './data/exercise1/detect/face/'
     path_other = './data/exercise1/detect/other/'
     img_faces = os.listdir(path_face)
@@ -120,12 +126,16 @@ def main():
 
     for img_file in img_faces:
         x_input = cv.imread(path_face + img_file, cv.IMREAD_GRAYSCALE)
-        face_detect(eigenfaces, x_input, x_mean, h, w)
+        corrects += face_detect(eigenfaces, x_input, x_mean, h, w, TYPE_FACE)
+        num_imgs += 1
 
     for img_file in img_other:
         x_input = cv.imread(path_other + img_file, cv.IMREAD_GRAYSCALE)
-        face_detect(eigenfaces, x_input, x_mean, h, w)
+        corrects += face_detect(eigenfaces, x_input, x_mean, h, w, TYPE_OTHER)
+        num_imgs += 1
 
+    accuracy = corrects / num_imgs
+    print('Face detection accuracy: {}\n'.format(accuracy))
     """
     Perform face recognition
     """
