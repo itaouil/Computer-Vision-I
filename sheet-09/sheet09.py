@@ -18,6 +18,17 @@ def load_FLO_file(filename):
     return flow
 
 
+def display_image(window_name, img):
+    """
+        Displays image with given window name.
+        :param window_name: name of the window
+        :param img: image object to display
+    """
+    cv.imshow(window_name, img)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+
+
 class OpticalFlow:
     def __init__(self):
         # Parameters for Lucas_Kanade_flow()
@@ -72,7 +83,7 @@ class OpticalFlow:
         flow_hsv = np.zeros((flow.shape[0], flow.shape[1], 3), dtype=np.uint8)
         flow_hsv[:, :, 1] = 255
 
-        mag, ang = cv.cartToPolar(flow[:, 0], flow[:, 1])
+        mag, ang = cv.cartToPolar(flow[..., 0], flow[..., 1])
         flow_hsv[..., 0] = ang * 180 / np.pi / 2
         flow_hsv[..., 2] = cv.normalize(mag, None, 0, 255, cv.NORM_MINMAX)
 
@@ -125,9 +136,38 @@ class OpticalFlow:
     # returns the Optical flow based on the Horn-Schunck algorithm and visualisation result
     def Horn_Schunck_flow(self):
         flow = None
-
+        mtx_u_t_1 = mtx_u_t = np.zeros((self.prev.shape[0], self.prev.shape[1]))
+        mtx_v_t_1 = mtx_v_t = np.zeros((self.prev.shape[0], self.prev.shape[1]))
+        kernel = np.array([
+            [0, .25, 0],
+            [.25, -1, .25],
+            [0, .25, 0],
+        ])
+        n_iter = 0
+        while self.l2_norm_error((mtx_u_t_1, mtx_u_t), (mtx_v_t_1, mtx_v_t)):
+            mtx_u_t = mtx_u_t_1
+            mtx_v_t = mtx_v_t_1
+            up_mtx_u = mtx_u_t + cv.filter2D(mtx_u_t, -1, kernel, self.borderType)
+            up_mtx_v = mtx_u_t + cv.filter2D(mtx_u_t, -1, kernel, self.borderType)
+            mtx_u_t_1 = (up_mtx_u -
+                         (self.Ix * (self.Ix * up_mtx_u + self.Iy * up_mtx_v + self.It)) /
+                         (self.Ix ** 2 + self.Iy ** 2 + .0000001))
+            mtx_v_t_1 = (up_mtx_v -
+                         (self.Iy * (self.Ix * up_mtx_u + self.Iy * up_mtx_v + self.It)) /
+                         (self.Ix ** 2 + self.Iy ** 2 + .0000001))
+            n_iter += 1
+            print('Iteration ({})'.format(n_iter))
+        flow = np.dstack((mtx_u_t_1, mtx_v_t_1))
         flow_bgr = self.flow_map_to_bgr(flow)
+        display_image('', flow_bgr)
         return flow, flow_bgr
+
+    def l2_norm_error(self, mtx_u_s, mtx_v_s, threshold=0.0002):
+        sum_u = np.abs(mtx_u_s[0] - mtx_u_s[1])
+        sum_v = np.abs(mtx_v_s[0] - mtx_v_s[1])
+        error = np.sum(sum_u - sum_v)
+        print('Error: ', error)
+        return error > threshold
 
     # ***********************************************************************************
     # calculate the angular error here
@@ -187,9 +227,9 @@ if __name__ == "__main__":
         if not Op.next_frame(img):
             continue
 
-        flow_lucas_kanade, flow_lucas_kanade_bgr = Op.Lucas_Kanade_flow()
-        aae_lucas_kanade, aae_lucas_kanade_per_point = Op.calculate_angular_error(flow_lucas_kanade, groundtruth_flow)
-        print('Average Angular error for Luacas-Kanade Optical Flow: %.4f' % (aae_lucas_kanade))
+        # flow_lucas_kanade, flow_lucas_kanade_bgr = Op.Lucas_Kanade_flow()
+        # aae_lucas_kanade, aae_lucas_kanade_per_point = Op.calculate_angular_error(flow_lucas_kanade, groundtruth_flow)
+        # print('Average Angular error for Luacas-Kanade Optical Flow: %.4f' % (aae_lucas_kanade))
 
         flow_horn_schunck, flow_horn_schunck_bgr = Op.Horn_Schunck_flow()
         aae_horn_schunk, aae_horn_schunk_per_point = Op.calculate_angular_error(flow_horn_schunck, groundtruth_flow)
