@@ -135,39 +135,78 @@ class OpticalFlow:
     # implement Horn-Schunck Optical Flow
     # returns the Optical flow based on the Horn-Schunck algorithm and visualisation result
     def Horn_Schunck_flow(self):
-        flow = None
+        # Horn Schunk flow
+        flow = np.zeros((self.prev.shape[0], self.prev.shape[1], 2))
+
+        # U and V matrices
         mtx_u_t_1 = mtx_u_t = np.zeros((self.prev.shape[0], self.prev.shape[1]))
         mtx_v_t_1 = mtx_v_t = np.zeros((self.prev.shape[0], self.prev.shape[1]))
+
+        # Laplacian kernel
         kernel = np.array([
             [0, .25, 0],
             [.25, -1, .25],
             [0, .25, 0],
         ])
+
+        # Current iteration
         n_iter = 0
-        while self.l2_norm_error((mtx_u_t_1, mtx_u_t), (mtx_v_t_1, mtx_v_t)):
+
+        # Keep updating if error above threshold (0.0002)
+        while self.l2_norm_error(mtx_u_t_1 - mtx_u_t, mtx_v_t_1 - mtx_v_t, n_iter):
+            # Make current matrices
+            # for U and V the previous
+            # update
             mtx_u_t = mtx_u_t_1
             mtx_v_t = mtx_v_t_1
+
+            # Compute Laplacian update
             up_mtx_u = mtx_u_t + cv.filter2D(mtx_u_t, -1, kernel, self.borderType)
             up_mtx_v = mtx_u_t + cv.filter2D(mtx_u_t, -1, kernel, self.borderType)
-            mtx_u_t_1 = (up_mtx_u -
-                         (self.Ix * (self.Ix * up_mtx_u + self.Iy * up_mtx_v + self.It)) /
-                         (self.Ix ** 2 + self.Iy ** 2 + .0000001))
-            mtx_v_t_1 = (up_mtx_v -
-                         (self.Iy * (self.Ix * up_mtx_u + self.Iy * up_mtx_v + self.It)) /
-                         (self.Ix ** 2 + self.Iy ** 2 + .0000001))
+
+            # Update denominator
+            # in common for both
+            # U update and V update
+            den_update = 1 + self.Ix ** 2 + self.Iy ** 2
+
+            # Iterative update for U
+            num_u_update = self.Ix * (self.Ix * up_mtx_u + self.Iy * up_mtx_v + self.It)
+            mtx_u_t_1 = up_mtx_u - num_u_update / den_update
+
+            # Iterative updat for V
+            num_v_update = self.Iy * (self.Ix * up_mtx_u + self.Iy * up_mtx_v + self.It)
+            mtx_v_t_1 = up_mtx_v - num_v_update / den_update
+
             n_iter += 1
             print('Iteration ({})'.format(n_iter))
-        flow = np.dstack((mtx_u_t_1, mtx_v_t_1))
-        flow_bgr = self.flow_map_to_bgr(flow)
+        
+        # Populate flow matrix
+        for y in range(self.prev.shape[0]):
+            for x in range(self.prev.shape[1]):
+                flow[y,x,:] = [u[y,x], v[y,x]]
+        
+        # Flow matrix stack
+        flow_stack = np.dstack((mtx_u_t_1, mtx_v_t_1))
+
+        # Compute BGR image from optical flow
+        flow_bgr = self.flow_map_to_bgr(flow_stack)
+
+        # Display image
         display_image('', flow_bgr)
+
         return flow, flow_bgr
 
-    def l2_norm_error(self, mtx_u_s, mtx_v_s, threshold=0.0002):
-        sum_u = np.abs(mtx_u_s[0] - mtx_u_s[1])
-        sum_v = np.abs(mtx_v_s[0] - mtx_v_s[1])
-        error = np.sum(sum_u - sum_v)
-        print('Error: ', error)
-        return error > threshold
+    def l2_norm_error(self, mtx_u_diff, mtx_v_diff, n_iter, threshold=0.0002):
+        if n_iter != 0:
+            # Differences sum
+            sum_diff = np.abs(mtx_u_diff) + np.abs(mtx_v_diff)
+            
+            # Compute and return error
+            error = np.sum(sum_diff)
+            print("Error: ", error)
+            return error > threshold
+        else:
+            return True
 
     # ***********************************************************************************
     # calculate the angular error here
@@ -203,8 +242,8 @@ class OpticalFlow:
 
 if __name__ == "__main__":
 
-    path = "./"
-    # path = "/Users/dailand10/Desktop/Computer-Vision-I/sheet-09/"
+    # path = "./"
+    path = "/Users/dailand10/Desktop/Computer-Vision-I/sheet-09/"
 
     data_list = [
         path + 'data/frame_0001.png',
