@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 
 NUM_IMAGES = 14
 NUM_Boards = NUM_IMAGES
-image_prefix = "images/"
-# image_prefix = "/Users/dailand10/Desktop/Computer-Vision-I/sheet10/images/"
+# image_prefix = "images/"
+image_prefix = "/Users/dailand10/Desktop/Computer-Vision-I/sheet-10/images/"
 image_suffix = ".png"
 images_files_list = [osp.join(image_prefix, f) for f in os.listdir(image_prefix)
                      if osp.isfile(osp.join(image_prefix, f)) and f.endswith(image_suffix)]
@@ -72,8 +72,58 @@ def task2(imagePoints, objectPoints):
 
 
 def task3(imagePoints, objectPoints, CM, D, rvecs, tvecs):
-    # implement your solution
-    pass
+    """
+        Compute reprojection error
+    """
+    # Reprojection error
+    error = 0
+
+    for c, img_file in enumerate(images_files_list):
+        # Read image
+        img = cv2.imread(img_file)
+
+        # Compute 3D reprojection
+        # for every single keypoint
+        # of every image
+        imagePointsProjection, _ = cv2.projectPoints(objectPoints[c], 
+                                                    rvecs[0], 
+                                                    tvecs[0], 
+                                                    CM, 
+                                                    D)
+
+        # print(imagePoints[c][1][0][0])
+
+        for k in range(board_w * board_h):
+            # Squeeze arrays
+            imagePointsSqueeze = np.squeeze(imagePoints)
+            imagePointsProjSqueeze = np.squeeze(imagePointsProjection)
+
+            print(imagePointsProjSqueeze[k])
+            print(imagePointsProjSqueeze[k])
+
+            # Draw ground-truth image points
+            cv2.circle(img, 
+                    (imagePointsSqueeze[k][0], imagePointsSqueeze[k][1]),
+                    20,
+                    (0, 255, 0),
+                    1)
+            
+            # Draw reprojected image points
+            cv2.circle(img, 
+                    (imagePointsProjSqueeze[k][0], imagePointsProjSqueeze[k][1]),
+                    20,
+                    (255, 0, 0),
+                    1)
+        
+        cv2.imshow("Task4", img)
+        cv2.waitKey(10)
+
+        # Compute reprojection error
+        error += np.sum(np.abs(imagePoints - imagePointsProjection))
+    
+    # Compute final error
+    error /= (NUM_IMAGES * board_w * board_h)
+    print("Projection error: ", error)
 
 
 def task4(CM, D):
@@ -84,7 +134,6 @@ def task4(CM, D):
 def task5(CM, rvecs, tvecs):
     # implement your solution
     pass
-
 
 def main():
     # Showing images
