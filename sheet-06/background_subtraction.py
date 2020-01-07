@@ -235,7 +235,7 @@ class GMM(object):
         # Fit Normal distribution
         self.fit_single_gaussian(data)
 
-        # Split singlt Norm in MoG
+        # Split single Norm in MoG
         for _ in range(n_splits):
             self.split()
 

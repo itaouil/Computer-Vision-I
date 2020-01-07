@@ -66,12 +66,9 @@ class OpticalFlow:
 
         return True
 
-    def SVD(self, M, R):
+    def get_affine(self, M, R):
         D, U, V_t = cv.SVDecomp(M)
         B_p = np.dot(U.T, R)
-        if (D == 0).any():
-            print(M)
-            print(D)
         Y = B_p / D
         X = np.dot(V_t.T, Y)
         return X
@@ -108,7 +105,6 @@ class OpticalFlow:
 
         # Iterate over pixels
         for y in range(self.prev.shape[0]):
-            print('Lucas_Kanade_flow iteration ({})'.format(y))
             for x in range(self.prev.shape[1]):
                 # Compute moment matrix
                 M = np.array([
@@ -123,10 +119,12 @@ class OpticalFlow:
                 ])
 
                 # Compute SVD to retrieve (u,v)
-                motion = self.SVD(M, -R)
+                motion = self.get_affine(M, -R)
 
                 # Store motion in flow
                 flow[y, x] = motion.flatten()
+            print('Lucas_Kanade_flow iterations Y axis ({}/{})'.format(y+1, self.prev.shape[0]), end="\r")
+        print('Lucas_Kanade_flow iterations Y axis ({}/{})'.format(y+1, self.prev.shape[0]), end="\n")
 
         flow_bgr = self.flow_map_to_bgr(flow)
         return flow, flow_bgr
@@ -178,8 +176,9 @@ class OpticalFlow:
             mtx_v_t_1 = up_mtx_v - num_v_update / den_update
 
             n_iter += 1
-            print('Horn_Schunck_flow iteration ({})'.format(n_iter))
-        
+            print('Horn_Schunck_flow iterations ({})'.format(n_iter), end="\r")
+        print('Horn_Schunck_flow iterations ({})'.format(n_iter), end="\n")
+
         # Flow matrix stack
         flow = np.dstack((mtx_u_t_1, mtx_v_t_1))
 
@@ -192,10 +191,9 @@ class OpticalFlow:
         if n_iter != 0:
             # Differences sum
             sum_diff = np.abs(mtx_u_diff) + np.abs(mtx_v_diff)
-            
+
             # Compute and return error
             error = np.sum(sum_diff)
-            print("Error: ", error)
             return error > threshold
         else:
             return True
@@ -212,7 +210,6 @@ class OpticalFlow:
 
         # Compute per point
         for y in range(size[0]):
-            print('AAE computation iteration ({})'.format(y))
             for x in range(size[1]):
                 # U and V error
                 num_aae = (groundtruth_flow[y, x, 0] * estimated_flow[y, x, 0] +
@@ -224,6 +221,8 @@ class OpticalFlow:
 
                 # Populate AAE per point
                 aae_per_point[y, x] = np.arccos(num_aae / den_aae)
+            print('AAE computation iterations Y axes ({}/{})'.format(y+1, size[0]), end="\r")
+        print('AAE computation iterations Y axes ({}/{})'.format(y+1, size[0]), end="\n")
 
         # Compute AAE (average)
         num = aae_per_point.sum()
@@ -235,8 +234,8 @@ class OpticalFlow:
 
 if __name__ == "__main__":
 
-    # path = "./"
-    path = "/Users/dailand10/Desktop/Computer-Vision-I/sheet-09/"
+    path = "./"
+    # path = "/Users/dailand10/Desktop/Computer-Vision-I/sheet-09/"
 
     data_list = [
         path + 'data/frame_0001.png',
@@ -269,7 +268,7 @@ if __name__ == "__main__":
 
         flow_bgr_gt = Op.flow_map_to_bgr(groundtruth_flow)
 
-        fig = plt.figure(figsize=(8, 8))
+        fig = plt.figure(figsize=(24, 10))
 
         # Display
         fig.add_subplot(2, 3, 1)
@@ -277,8 +276,6 @@ if __name__ == "__main__":
         fig.add_subplot(2, 3, 2)
         plt.imshow(flow_lucas_kanade_bgr)
         fig.add_subplot(2, 3, 3)
-        plt.show()
-
         plt.imshow(aae_lucas_kanade_per_point)
         fig.add_subplot(2, 3, 4)
         plt.imshow(flow_bgr_gt)
