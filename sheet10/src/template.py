@@ -45,6 +45,7 @@ def task1():
         # Check if corners found
         # and display them
         if found:
+            # Append 3D object points
             objpoints.append(obj)
 
             # Refine detected corner
@@ -52,10 +53,11 @@ def task1():
             imgpoints.append(corners2)
 
             # Draw and display the corners
-            img = cv2.drawChessboardCorners(img, (board_h, board_w), corners2, found)
-            cv2.imshow('img', img)
-            cv2.waitKey(500)
-
+            # img = cv2.drawChessboardCorners(img, (board_h, board_w), corners2, found)
+            # cv2.imshow('img', img)
+            # cv2.waitKey(500)
+    
+    return imgpoints, objpoints
 
 def task2(imagePoints, objectPoints):
     #implement your solution
@@ -93,4 +95,5 @@ def main():
     
     print("FINISH!")
 
-main()
+if __name__ == "__main__":
+    main()
